@@ -1,0 +1,42 @@
+version: "3.17"
+services:
+  bot_app:
+    build:
+      context: ./
+      dockerfile: ./bot_app/Dockerfile
+    restart: always
+    network_mode: "host"
+    env_file:
+      - .env
+    depends_on:
+      - telegram-bot-api
+
+  admin_panel:
+    network_mode: "host"
+    build:
+      context: ./
+      dockerfile: ./admin_panel/Dockerfile
+    volumes:
+      - ./admin_panel/admin_panel/migrations:/app/admin_panel/migrations
+      - ./admin_panel/api/migrations:/app/api/migrations
+      - /dev/shm:/dev/shm # Add shared memory volume for Gunicorn
+      - ./admin_panel/entrypoint.sh:/app/entrypoint.sh
+    env_file:
+      - .env
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  telegram-bot-api:
+    network_mode: "host"
+    image: aiogram/telegram-bot-api:latest
+    container_name: telegram-bot-api
+    restart: always
+    volumes:
+      - telegram-bot-api-data:/var/lib/telegram-bot-api
+    environment:
+      TELEGRAM_API_ID: 25047511
+      TELEGRAM_API_HASH: 5b6aa5c9a29f25f4cb081a1b5fafab6e
+      TELEGRAM_LOCAL: 1
+
+volumes:
+  telegram-bot-api-data:

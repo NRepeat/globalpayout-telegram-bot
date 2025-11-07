@@ -1,0 +1,33 @@
+version: '3.17'
+services:
+  bot_app:
+    image: ${DOCKER_HUB_USERNAME}/yzy_applications_bot_app:${DOCKER_IMAGE_TAG}
+    restart: always
+    network_mode: "host"
+    env_file:
+      - .env
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 1G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+  admin_panel:
+    image: ${DOCKER_HUB_USERNAME}/yzy_applications_admin_panel:${DOCKER_IMAGE_TAG}
+    volumes:
+      - ./admin_panel/admin_panel/migrations:/app/admin_panel/migrations
+      - ./admin_panel/api/migrations:/app/api/migrations
+      - /dev/shm:/dev/shm  # Add shared memory volume for Gunicorn
+      - ./admin_panel/entrypoint.sh:/app/entrypoint.sh
+    env_file:
+      - .env
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 1G
+        reservations:
+          cpus: '0.5'
+          memory: 512M

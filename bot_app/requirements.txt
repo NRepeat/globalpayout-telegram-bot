@@ -1,0 +1,8 @@
+fastapi==0.115.6
+aiomysql==0.2.0
+aiogram==3.17.0
+python-dotenv==1.0.1
+uvicorn==0.34.0
+pytz==2024.2
+pandas==2.2.3
+xlsxwriter==3.2.2
