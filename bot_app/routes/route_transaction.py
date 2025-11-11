@@ -111,18 +111,18 @@ async def get_transaction(
     db_connection: Connection = Depends(get_db_connection),
     authorization: str | None = Header(default=None),
 ) -> dict:
-    if authorization is None:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Authorization header is required",
-        )
-    key_data = await get_access_key(db_connection, authorization.split(" ")[1])
-    if not key_data:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Access key is not valid",
-        )
-    transaction_data: TransactionResponse = await get_transaction_by_uuid(
+    # if authorization is None:
+    #     raise HTTPException(
+    #         status_code=status.HTTP_401_UNAUTHORIZED,
+    #         detail="Authorization header is required",
+    #     )
+    # key_data = await get_access_key(db_connection, authorization.split(" ")[1])
+    # if not key_data:
+    #     raise HTTPException(
+    #         status_code=status.HTTP_401_UNAUTHORIZED,
+    #         detail="Access key is not valid",
+    #     )
+    transaction_data: TransactionResponse | None = await get_transaction_by_uuid(
         db_connection, transaction_id
     )
     if not transaction_data:

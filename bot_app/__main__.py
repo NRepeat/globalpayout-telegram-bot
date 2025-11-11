@@ -31,14 +31,15 @@ async def lifespan(app: FastAPI):
         await log_out_from_telegram_api()
 
     my_commands = await aiogram_bot_instance.get_my_commands()
+    print(my_commands)
     commands_list = [
         BotCommand(command="start", description="Почати роботу"),
         BotCommand(command="rate", description="налаштування напрямів"),
         BotCommand(command="report", description="Звіт"),
         BotCommand(command="stats", description="Статистика"),
     ]
-    if my_commands != commands_list:
-        await aiogram_bot_instance.set_my_commands(commands_list)
+    # if my_commands != commands_list:
+    await aiogram_bot_instance.set_my_commands(commands_list)
 
     await db.create_pool()
     yield

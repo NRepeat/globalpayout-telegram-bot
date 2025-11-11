@@ -1,10 +1,17 @@
 from aiogram.filters.callback_data import CallbackData
+from aiogram.types.reply_keyboard_markup import ReplyKeyboardMarkup
 from aiogram.utils.keyboard import (
     InlineKeyboardBuilder,
     InlineKeyboardMarkup,
 )
+from typing_extensions import List
 
-from bot_app.exchange_methods import RouteResponse
+from bot_app.exchange_methods import (
+    GroupResponse,
+    GroupsListResponse,
+    RouteId,
+    RouteResponse,
+)
 
 
 class ReportPeriodSelection(CallbackData, prefix="report"):
@@ -30,6 +37,12 @@ class RouteSelectionOperations(CallbackData, prefix="route"):
     action: str
 
 
+class GroupSelectionOperations(CallbackData, prefix="group"):
+    group_external_id: str
+    user_caller_id: int
+    action: str
+
+
 class TransactionOperations(CallbackData, prefix="tx"):
     transaction_uuid: str
     action: str
@@ -45,6 +58,20 @@ class ApproveOrCancelUpdatingRateDiscounts(CallbackData, prefix="discount_rate")
 
 class ApproveOrCancelNewManualRate(CallbackData, prefix="manual_rate"):
     action: str
+
+
+def approve_or_cancel_updating_group_rate_markup() -> InlineKeyboardMarkup:
+    m = InlineKeyboardBuilder()
+    m.button(
+        text="✅ Підтвердити",
+        callback_data=ApproveOrCancelNewManualRate(action="group_aprove"),
+    )
+    m.button(
+        text="❌ Відмінити",
+        callback_data=ApproveOrCancelNewManualRate(action="cancel"),
+    )
+    keyboard = m.adjust(2).as_markup()
+    return keyboard
 
 
 def approve_or_cancel_updating_rate_discounts_markup() -> InlineKeyboardMarkup:
@@ -186,4 +213,63 @@ def route_selection_markup(
         ),
     )
     keyboard = m.adjust(1).as_markup()
+    return keyboard
+
+
+def group_route_selection_markup(
+    routes: List[RouteId], group_external_id: str, user_caller_id: int
+) -> InlineKeyboardMarkup | ReplyKeyboardMarkup:
+    m = InlineKeyboardBuilder()
+    for route in routes:
+        m.button(
+            text=route.get_formatted_route_name(),
+            callback_data=RouteSelectionOperations(
+                user_caller_id=user_caller_id,
+                route_external_id=route.id,
+                action="select",
+            ),
+        )
+
+    m.button(
+        text="❌ Відмінити",
+        callback_data=GroupSelectionOperations(
+            user_caller_id=user_caller_id, group_external_id="", action="cancel"
+        ),
+    )
+
+    m.button(
+        text="Редагувати",
+        callback_data=GroupSelectionOperations(
+            user_caller_id=user_caller_id,
+            group_external_id=group_external_id,
+            action="edit",
+        ),
+    )
+    keyboard = m.adjust(1).as_markup()
+    return keyboard
+
+
+def group_selection_markup(
+    groups: GroupsListResponse, user_caller_id: int
+) -> InlineKeyboardMarkup | ReplyKeyboardMarkup:
+    m = InlineKeyboardBuilder()
+
+    # FIX 1: Iterate over groups.groups, which is the actual list
+    for group in groups.groups:
+        m.button(
+            text=group.name,
+            callback_data=GroupSelectionOperations(
+                user_caller_id=user_caller_id,
+                group_external_id=group.id,
+                action="select",
+            ),
+        )
+
+    m.button(
+        text="❌ Відмінити",
+        callback_data=GroupSelectionOperations(
+            user_caller_id=user_caller_id, group_external_id="", action="cancel"
+        ),
+    )
+    keyboard = m.adjust(2).as_markup()
     return keyboard

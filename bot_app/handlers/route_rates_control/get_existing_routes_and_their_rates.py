@@ -26,16 +26,13 @@ async def start_rates_control_menu(
         await save_user(db_connection, message.from_user)
         await message.answer("Виконання цієї дії дозволено лише старшим операторам")
         return
-
     if not user.senior_operator:
         await message.answer("Виконання цієї дії дозволено лише старшим операторам")
         return
     try:
         all_routes: list[RouteResponse] = await box_exchanger_client.get_routes()
     except APIError as e:
-        await message.answer(
-            f"Помилка при отриманні списку напрямків. {e.message}, {e.error_code}"
-        )
+        await message.answer("Помилка при отриманні списку напрямків.")
         return
     uah_active_routes = [
         route

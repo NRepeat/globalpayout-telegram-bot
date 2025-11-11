@@ -1,5 +1,8 @@
+from datetime import datetime
 import hashlib
 import json
+from pandas.core.util.numba_ import Callable
+from typing_extensions import List
 from bot_app.config import settings
 import json
 import hashlib
@@ -19,12 +22,12 @@ class Discount(BaseModel):
 class ManualRateDetails(BaseModel):
     from_: float = Field(alias="from")
     to: float = Field(alias="to")
-    update_at: int = Field(alias="updateAt")
+    update_at: float = Field(alias="updateAt")
 
 
 class RouteFromCurrency(BaseModel):
     active: bool
-    decimal: int
+    decimal: float
     deleted: bool
     fields: list
     id: str = Field(alias="_id")
@@ -69,16 +72,16 @@ class RateParsers(BaseModel):
 
 
 class RouteRate(BaseModel):
-    change_fee_amount: int = Field(alias="changeFeeAmount")
-    change_fee_percent: int = Field(alias="changeFeePercent")
+    change_fee_amount: float = Field(alias="changeFeeAmount")
+    change_fee_percent: float = Field(alias="changeFeePercent")
     change_percent_re_calculate: float = Field(alias="changePercentReCalculate")
     change_percent_re_calculate_up: float = Field(alias="changePercentReCalculateUp")
     enable_parser: bool = Field(alias="enableParser")
-    limit_percent_from_start_to_re_calculate: int = Field(
+    limit_percent_from_start_to_re_calculate: float = Field(
         alias="limitPercentFromStartToReCalculate"
     )
-    loss_fee_amount: int = Field(alias="lossFeeAmount")
-    loss_fee_percent: int = Field(alias="lossFeePercent")
+    loss_fee_amount: float = Field(alias="lossFeeAmount")
+    loss_fee_percent: float = Field(alias="lossFeePercent")
     manual: ManualRateDetails
     parsers: list[RateParsers]
     source_type: str = Field(alias="sourceType")
@@ -87,7 +90,7 @@ class RouteRate(BaseModel):
 
 class RouteToCurrency(BaseModel):
     active: bool
-    decimal: int
+    decimal: float
     deleted: bool
     fields: list
     id: str = Field(alias="_id")
@@ -130,7 +133,7 @@ class RouteResponse(BaseModel):
     is_export: bool = Field(alias="isExport")
     is_show_bot: bool = Field(alias="isShowBot")
     is_show_web: bool = Field(alias="isShowWeb")
-    order_ttl: int = Field(alias="orderTTL")
+    order_ttl: float = Field(alias="orderTTL")
     priority_payment_details: dict[str, Any] = Field(alias="priorityPaymentDetails")
     rate: RouteRate
     required_documents: list = Field(alias="requiredDocuments")
@@ -154,7 +157,7 @@ class RouteResponse(BaseModel):
             for parser in self.rate.parsers:
                 parsers_info += f"🤖 {parser.parser_id}\n💱 {parser.route_name}\n📅 {parser.updated_at}\n💹 {parser.rate_buy} \n\n"
 
-        rate_info_text = f"""    
+        rate_info_text = f"""
 <b>Встановлений вручну курс:</b>
 💹 {self.rate.manual.from_} / {self.rate.manual.to}
 📅 {format_unix_timestamp(self.rate.manual.update_at)}
@@ -177,11 +180,45 @@ class RouteResponse(BaseModel):
         return discounts_info
 
 
+# class GroupResponse(BaseModel):
+
+
 class APIError(Exception):
-    def __init__(self, message: str, error_code: int):
+    def __init__(self, message: str, error_code: float):
         self.message = message
         self.error_code = error_code
         super().__init__(self.message)
+
+
+class Currency(BaseModel):
+    id: str = Field(alias="_id")
+    name: str
+    symbol: str
+
+
+class FromTo(BaseModel):
+    currency: Currency
+
+
+class RouteId(BaseModel):
+    id: str = Field(alias="_id")
+    from_: FromTo = Field(alias="from")
+    to: FromTo
+
+    def get_formatted_route_name(self) -> str:
+        return f"{self.from_.currency.name} ({self.from_.currency.symbol}) ➡️ {self.to.currency.name} ({self.to.currency.symbol})"
+
+
+class GroupResponse(BaseModel):
+    id: str = Field(alias="_id")
+    name: str
+    routeIds: List[RouteId]
+    created_at: Optional[datetime] = Field(None, alias="createdAt")
+    updated_at: Optional[datetime] = Field(None, alias="updatedAt")
+
+
+class GroupsListResponse(BaseModel):
+    groups: List[GroupResponse]
 
 
 class BoxExchanger:
@@ -244,7 +281,7 @@ class BoxExchanger:
             raise APIError(message=f"Validation error: {str(e)}", error_code=400)
 
     async def update_manual_rate(
-        self, route_id: str, from_: float, to: float, updated_at: int
+        self, route_id: str, from_: float, to: float, updated_at: float
     ):
         try:
             response = await self.call(
@@ -281,6 +318,54 @@ class BoxExchanger:
         except ValidationError as e:
             raise APIError(message=f"Validation error: {str(e)}", error_code=400)
 
+    async def get_groups(self) -> GroupsListResponse:
+        try:
+            response = await self.call(
+                method="GET:admin/exchanger/route/group/get/list"
+            )
+
+            return GroupsListResponse(**response)
+
+        except ValidationError as e:
+            # This will catch errors if the API data doesn't match your models
+            raise APIError(message=f"Validation error: {str(e)}", error_code=400)
+        except Exception as e:
+            # General error handling
+            raise APIError(message=str(e), error_code=500)
+
+    async def get_group_by_id(self, group_external_id: str) -> GroupResponse:
+        try:
+            response = await self.call(
+                method="GET:admin/exchanger/route/group/get/one",
+                param={"get": {"id": group_external_id}},
+            )
+            return GroupResponse(**response["group"])
+
+        except ValidationError as e:
+            # This will catch errors if the API data doesn't match your models
+            raise APIError(message=f"Validation error: {str(e)}", error_code=400)
+        except Exception as e:
+            # General error handling
+            raise APIError(message=str(e), error_code=500)
+
+    async def update_manual_group_rate(
+        self, group_id: str, from_: float, to: float, updated_at: float
+    ):
+        try:
+            response = await self.call(
+                method="PUT:admin/exchanger/route/editByGroup/",
+                param={
+                    "post": {
+                        "group_id": group_id,
+                        "rateManual": {"from": str(from_), "to": str(to)},
+                    }
+                },
+            )
+            return response
+        except ValidationError as e:
+            raise APIError(message=f"Validation error: {str(e)}", error_code=400)
+        return
+
     async def call(self, method: str, param=None):
         if param is None:
             param = {}
@@ -303,7 +388,7 @@ class BoxExchanger:
             typeMethod, method = method_parts[0].upper(), method_parts[1]
         else:
             method = method_parts[0]
-        get["time"] = int(1000 * asyncio.get_event_loop().time())
+        get["time"] = float(1000 * asyncio.get_event_loop().time())
 
         url_params = "&".join(
             f"{key}={value}"

@@ -1,4 +1,4 @@
-from bot_app.exchange_methods import RouteResponse
+from bot_app.exchange_methods import GroupResponse, RouteResponse
 
 
 def direction_current_information(route: RouteResponse, from_currency_code: str):
@@ -39,6 +39,21 @@ def new_manual_rate_input(route: RouteResponse):
 
 <b>Напрямок обміну</b>
 {route.get_formatted_route_name()}
+
+Введіть новий курс обміну в форматі &lt;курс from&gt; &lt;курс to&gt;
+
+Приклади:
+<code>27.5 1</code>
+<code>1 27.5</code>
+"""
+
+
+def new_manual_group_rate_input(groupName: str):
+    ## we should accept from and to here
+    return f"""<b>Введення нового курсу обміну вручну</b>
+
+<b>Группа</b>
+{groupName}
 
 Введіть новий курс обміну в форматі &lt;курс from&gt; &lt;курс to&gt;
 

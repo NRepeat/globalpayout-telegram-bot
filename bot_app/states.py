@@ -9,3 +9,4 @@ class NewRateDiscount(StatesGroup):
 class NewManualRate(StatesGroup):
     new_manual_rate_value = State()
     input_confirmation = State()
+    new_group_manual_rate_value = State()
