@@ -164,7 +164,6 @@ async def approve_gropu_rate(
     db_connection: Connection,
     callback_data: ApproveOrCancelNewManualRate,
 ):
-    print(callback_data)
     user = await get_user_by_id(db_connection, call.from_user.id)
     state_data = await state.get_data()
     await state.clear()
