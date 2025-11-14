@@ -366,6 +366,16 @@ class BoxExchanger:
             raise APIError(message=f"Validation error: {str(e)}", error_code=400)
         return
 
+    async def change_parser_state_for_group(self, group_id: str, state: bool):
+        try:
+            response = await self.call(
+                method="PUT:admin/exchanger/route/editByGroup/",
+                param={"post": {"group_id": group_id, "enableParser": state}},
+            )
+            return response
+        except ValidationError as e:
+            raise APIError(message=f"Validation error: {str(e)}", error_code=400)
+
     async def update_curency_rates(self, currency_id: str, rate):
         try:
             response = await self.call(

@@ -238,11 +238,27 @@ def group_route_selection_markup(
     )
 
     m.button(
-        text="Редагувати",
+        text="Редагувати курс групи",
         callback_data=GroupSelectionOperations(
             user_caller_id=user_caller_id,
             group_external_id=group_external_id,
             action="edit",
+        ),
+    )
+    m.button(
+        text="🟢 Увімкнути парсери групи",
+        callback_data=GroupSelectionOperations(
+            user_caller_id=user_caller_id,
+            group_external_id=group_external_id,
+            action="enable_group_parser",
+        ),
+    )
+    m.button(
+        text="🛑 Вимкнути парсери групи",
+        callback_data=GroupSelectionOperations(
+            user_caller_id=user_caller_id,
+            group_external_id=group_external_id,
+            action="disable_group_parser",
         ),
     )
     keyboard = m.adjust(1).as_markup()
