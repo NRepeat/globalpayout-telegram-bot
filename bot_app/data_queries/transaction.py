@@ -10,19 +10,34 @@ from bot_app.config import settings
 from bot_app.schemas.tg_chat import SavedChat
 from bot_app.schemas.transaction import NewTransaction, TransactionResponse
 
+#
+
+# ...
+
 
 async def new_transaction(
     conn: Connection, transaction: NewTransaction
 ) -> TransactionResponse:
     now_time_with_timezone = datetime.datetime.now(tz=pytz.timezone(settings.TIME_ZONE))
     new_transaction_uuid = str(uuid.uuid4())
+
     query = """
-    INSERT INTO exchange_transaction (
-    uuid, external_order_id, status_id,
-    currency, currency_xml_code, amount, card_number, full_name, created_at) 
-    VALUES (%s, %s, (select record_id from data_status where status_code = %s), 
-    %s, %s, %s, %s, %s, %s)
-    """
+  INSERT INTO exchange_transaction (
+        uuid, external_order_id, status_id,
+        currency, currency_xml_code, amount, created_at,
+        card_number, full_name,
+        method_type, service_name, iban, inn,
+        recipient_name, payment_note, payout_email, revtag
+  )
+  VALUES (
+        %s, %s, (select record_id from data_status where status_code = %s),
+        %s, %s, %s, %s,
+        %s, %s,
+        %s, %s, %s, %s,
+        %s, %s, %s, %s
+    )
+  """
+    print(transaction)
     params = (
         new_transaction_uuid,
         transaction.external_order_id,
@@ -30,14 +45,24 @@ async def new_transaction(
         transaction.currency,
         transaction.currency_xml_code,
         transaction.amount,
+        now_time_with_timezone,
         transaction.card_number,
         transaction.full_name,
-        now_time_with_timezone,
+        transaction.method_type,
+        transaction.service_name,
+        transaction.iban,
+        transaction.inn,
+        transaction.recipient_name,
+        transaction.payment_note,
+        transaction.payout_email,
+        transaction.revtag,
     )
+
     async with conn.cursor() as cur:
         cur: Cursor
         await cur.execute(query, params)
         await conn.commit()
+
     return await get_transaction_by_uuid(conn, new_transaction_uuid)
 
 
@@ -45,11 +70,14 @@ async def get_transaction_by_uuid(
     conn: Connection, transaction_uuid: str
 ) -> Optional[TransactionResponse]:
     query = """
-    SELECT uuid, external_order_id, data_status.status_code, 
-    currency, manager_id, currency_xml_code, amount, full_name, 
-    card_number, created_at
-    FROM exchange_transaction 
-    JOIN data_status ON exchange_transaction.status_id = data_status.record_id 
+    SELECT
+        uuid, external_order_id, data_status.status_code,
+        currency, manager_id, currency_xml_code, amount, full_name,
+        card_number, created_at,
+        method_type, service_name, iban, inn,
+        recipient_name, payment_note, payout_email, revtag
+    FROM exchange_transaction
+    JOIN data_status ON exchange_transaction.status_id = data_status.record_id
     WHERE uuid = %s
     """
     async with conn.cursor() as cur:

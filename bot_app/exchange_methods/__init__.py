@@ -366,6 +366,21 @@ class BoxExchanger:
             raise APIError(message=f"Validation error: {str(e)}", error_code=400)
         return
 
+    async def update_curency_rates(self, currency_id: str, rate):
+        try:
+            response = await self.call(
+                method="PUT:admin/exchanger/currency/edit",
+                param={"post": {"currency_id": currency_id, "manualRateUSD": rate}},
+            )
+            return response
+
+        except ValidationError as e:
+            # This will catch errors if the API data doesn't match your models
+            raise APIError(message=f"Validation error: {str(e)}", error_code=400)
+        except Exception as e:
+            # General error handling
+            raise APIError(message=str(e), error_code=500)
+
     async def call(self, method: str, param=None):
         if param is None:
             param = {}
