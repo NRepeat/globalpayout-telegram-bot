@@ -77,13 +77,30 @@ async def edit_discounts(
         return
     if call.message is None:
         return
+
+    parsers_enabled_for_group = None
+    if group.routeIds:
+        try:
+            # Fetch the first route to determine the parser state for the group
+            first_route_info = await box_exchanger_client.get_route_by_id(
+                group.routeIds[0].id
+            )
+            parsers_enabled_for_group = first_route_info.rate.enable_parser
+        except APIError as e:
+            # Could not fetch route, so we don't know the state.
+            # Buttons will be duplicated, which is a fallback.
+            pass
+
     uah_active_routes = [route for route in group.routeIds]
     await call.answer()
     await call.message.delete()
     await call.message.answer(
         f"{user.linked_name_and_username()}, Оберіть напрямок (показано лише активні напрямки з валютою UAH)",
         reply_markup=group_route_selection_markup(
-            uah_active_routes, callback_data.group_external_id, call.from_user.id
+            uah_active_routes,
+            callback_data.group_external_id,
+            call.from_user.id,
+            parsers_enabled_for_group=parsers_enabled_for_group,
         ),
     )
 

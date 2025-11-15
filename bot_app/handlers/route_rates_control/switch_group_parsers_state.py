@@ -5,7 +5,7 @@ from aiogram.types import CallbackQuery
 from bot_app.data_queries import Connection
 from bot_app.data_queries.user import get_user_by_id, save_user
 from bot_app.exchange_methods import APIError
-from bot_app.markup.base import GroupSelectionOperations
+from bot_app.markup.base import GroupSelectionOperations, group_route_selection_markup
 from bot_app.misc import aiogram_router, box_exchanger_client
 
 
@@ -38,7 +38,24 @@ async def disable_parser_for_group(
         )
         return
 
-    await call.answer("Парсери для групи вимкнено.", show_alert=True)
+    await call.answer("Парсери для групи вимкнено.")
+
+    try:
+        group = await box_exchanger_client.get_group_by_id(
+            callback_data.group_external_id
+        )
+    except APIError as e:
+        await call.answer(f"Помилка при оновленні меню: {e.message}", show_alert=True)
+        return
+
+    await call.message.edit_reply_markup(
+        reply_markup=group_route_selection_markup(
+            group.routeIds,
+            group.id,
+            call.from_user.id,
+            parsers_enabled_for_group=False,
+        )
+    )
 
 
 @aiogram_router.callback_query(
@@ -70,4 +87,21 @@ async def enable_parser_for_group(
         )
         return
 
-    await call.answer("Парсери для групи включено.", show_alert=True)
+    await call.answer("Парсери для групи включено.")
+
+    try:
+        group = await box_exchanger_client.get_group_by_id(
+            callback_data.group_external_id
+        )
+    except APIError as e:
+        await call.answer(f"Помилка при оновленні меню: {e.message}", show_alert=True)
+        return
+
+    await call.message.edit_reply_markup(
+        reply_markup=group_route_selection_markup(
+            group.routeIds,
+            group.id,
+            call.from_user.id,
+            parsers_enabled_for_group=True,
+        )
+    )
