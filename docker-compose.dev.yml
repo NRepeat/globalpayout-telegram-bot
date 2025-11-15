@@ -19,7 +19,7 @@ services:
     volumes:
       - ./admin_panel/admin_panel/migrations:/app/admin_panel/migrations
       - ./admin_panel/api/migrations:/app/api/migrations
-      - /var/www/yog/static:/app/static
+      - /var/www/yog/static:/app/staticfiles
       - /dev/shm:/dev/shm # Add shared memory volume for Gunicorn
       - ./admin_panel/entrypoint.sh:/app/entrypoint.sh
     env_file:
