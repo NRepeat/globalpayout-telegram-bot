@@ -69,20 +69,97 @@ class ExchangeTransaction(models.Model):
     uuid = models.CharField(null=False, max_length=36, primary_key=True)
     external_order_id = models.CharField(max_length=100)
     created_at = models.DateTimeField()
-    status = models.ForeignKey(Status, on_delete=models.SET_NULL, null=True)
-    manager = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
+    status = models.ForeignKey(
+        Status, on_delete=models.SET_NULL, null=True, related_name="transactions"
+    )
+    manager = models.ForeignKey(
+        User, on_delete=models.SET_NULL, null=True, related_name="managed_transactions"
+    )
     currency = models.CharField(max_length=36, blank=True, null=True)
     currency_xml_code = models.CharField(max_length=36, blank=True, null=True)
     amount = models.FloatField()
+    amount = models.FloatField()
+
     full_name = models.CharField(max_length=250, null=True, blank=True)
     card_number = models.CharField(max_length=100, null=True, blank=True)
     posted_in_chat = models.ForeignKey(
-        TgChat, on_delete=models.SET_NULL, null=True, blank=True
+        TgChat,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="transactions",
     )
     posted_message_id = models.BigIntegerField(null=True, blank=True)
     usdt_amount = models.FloatField(null=True, blank=True)
+
+    method_type = models.IntegerField(null=True, blank=True)
+    service_name = models.CharField(max_length=50, null=True, blank=True)
+    iban = models.CharField(max_length=34, null=True, blank=True)
+    inn = models.CharField(max_length=12, null=True, blank=True)
+    recipient_name = models.CharField(max_length=255, null=True, blank=True)
+    payment_note = models.CharField(max_length=255, null=True, blank=True)
+    payout_email = models.EmailField(null=True, blank=True)
+    revtag = models.CharField(max_length=50, null=True, blank=True)
 
     class Meta:
         db_table = "exchange_transaction"
         verbose_name = "Заявка на обмін"
         verbose_name_plural = "Заявки на обмін"
+
+    def __str__(self):
+        return f"Заявка {self.external_order_id} ({self.amount} {self.currency})"
+
+    def get_telegram_formatted_application(self) -> str:
+        details = []
+
+        # Method 0: Карта
+        if self.method_type == 0:
+            details.append(f"💳 Карта: `{self.card_number}`")
+            details.append(f"👤 ФИО: `{self.full_name}`")
+
+        # Method 1: IBAN UAH
+        elif self.method_type == 1:
+            details.append(f"🏦 IBAN: `{self.iban}`")
+            details.append(f"👤 ФИО: `{self.full_name}`")
+            details.append(f"📄 ИНН: `{self.inn}`")
+
+        # Method 2: SEPA
+        elif self.method_type == 2:
+            details.append(f"🇪🇺 SEPA IBAN: `{self.iban}`")
+            details.append(f"👤 Имя (ФОП/ТОВ): `{self.recipient_name}`")
+            details.append(f"📝 Назначение: `{self.payment_note}`")
+
+        # Method 3: Email-кошелек
+        elif self.method_type == 3:
+            service = self.service_name.capitalize() if self.service_name else "Email"
+            details.append(f"📧 {service} Email: `{self.payout_email}`")
+            details.append(f"👤 ФИО: `{self.full_name}`")
+
+        # Method 4: Revtag
+        elif self.method_type == 4:
+            details.append(f"📱 Revtag: `{self.revtag}`")
+            details.append(f"👤 ФИО: `{self.full_name}`")
+
+        else:
+            # Обработка старых заявок, где method_type = None
+            if self.card_number:
+                details.append(f"💳 Карта: `{self.card_number}`")
+            if self.full_name:
+                details.append(f"👤 ФИО: `{self.full_name}`")
+            if not details:
+                details.append("❗️ Реквизиты не распознаны (старый формат).")
+
+        details_block = "\n".join(details)
+
+        text = f"""
+        *Новая заявка на выплату*
+        ---
+        *ID Заявки:* `{self.external_order_id}`
+        *ID Транзакции:* `{self.uuid}`
+        *Сумма:* `{self.amount} {self.currency}`
+        *Сервис:* `{self.service_name or "N/A"}`
+        ---
+        *Реквизиты:*
+        {details_block}
+        """
+        return "\n".join([line.strip() for line in text.splitlines()])

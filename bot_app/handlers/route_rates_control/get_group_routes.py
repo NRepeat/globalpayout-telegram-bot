@@ -7,13 +7,14 @@ from aiogram.types.callback_query import CallbackQuery
 from bot_app.data_queries import Connection
 from bot_app.data_queries.user import get_user_by_id, save_user
 from bot_app.exchange_methods import APIError, GroupResponse
-from bot_app.handlers.route_rates_control.utils import authorize_user
+from bot_app.handlers.route_rates_control.utils import (
+    authorize_user,
+    update_curency_rates,
+)
 from bot_app.markup.base import (
     ApproveOrCancelNewManualRate,
     GroupSelectionOperations,
-    approve_or_cancel_new_manual_rate,
     approve_or_cancel_updating_group_rate_markup,
-    approve_or_cancel_updating_rate_discounts_markup,
     cancel_state_entering_markup,
     group_route_selection_markup,
     group_selection_markup,
@@ -76,13 +77,30 @@ async def edit_discounts(
         return
     if call.message is None:
         return
+
+    parsers_enabled_for_group = None
+    if group.routeIds:
+        try:
+            # Fetch the first route to determine the parser state for the group
+            first_route_info = await box_exchanger_client.get_route_by_id(
+                group.routeIds[0].id
+            )
+            parsers_enabled_for_group = first_route_info.rate.enable_parser
+        except APIError as e:
+            # Could not fetch route, so we don't know the state.
+            # Buttons will be duplicated, which is a fallback.
+            pass
+
     uah_active_routes = [route for route in group.routeIds]
     await call.answer()
     await call.message.delete()
     await call.message.answer(
         f"{user.linked_name_and_username()}, Оберіть напрямок (показано лише активні напрямки з валютою UAH)",
         reply_markup=group_route_selection_markup(
-            uah_active_routes, callback_data.group_external_id, call.from_user.id
+            uah_active_routes,
+            callback_data.group_external_id,
+            call.from_user.id,
+            parsers_enabled_for_group=parsers_enabled_for_group,
         ),
     )
 
@@ -191,11 +209,26 @@ async def approve_gropu_rate(
             text=f"{user.linked_name_and_username()}, Помилка при отриманні інформації про напрямок. {e.message}, {e.error_code}",
         )
         return
-
     await aiogram_bot_instance.send_message(
         chat_id=call.message.chat.id,
         text=f"{user.linked_name_and_username()}, Курс обміну успішно змінено\n {group.name} \n",
     )
+    try:
+        routesIdsToUpdate = group.routeIds
+        usdRate = state_data["rate_from"] / state_data["rate_to"]
+        formatted_usdRate = f"{usdRate:.5f}"
+        print("usdRate", formatted_usdRate)
+        await update_curency_rates.update_curency_rates(
+            routesIdsToUpdate, formatted_usdRate
+        )
+
+    except Exception as e:
+        await aiogram_bot_instance.send_message(
+            chat_id=call.message.chat.id,
+            text=f"{user.linked_name_and_username()}, Помилка при встановленні курсу. {e}",
+        )
+
+        return
 
 
 @aiogram_router.callback_query(GroupSelectionOperations.filter(F.action == "cancel"))

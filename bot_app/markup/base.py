@@ -217,7 +217,10 @@ def route_selection_markup(
 
 
 def group_route_selection_markup(
-    routes: List[RouteId], group_external_id: str, user_caller_id: int
+    routes: List[RouteId],
+    group_external_id: str,
+    user_caller_id: int,
+    parsers_enabled_for_group: bool = None,
 ) -> InlineKeyboardMarkup | ReplyKeyboardMarkup:
     m = InlineKeyboardBuilder()
     for route in routes:
@@ -238,13 +241,48 @@ def group_route_selection_markup(
     )
 
     m.button(
-        text="Редагувати",
+        text="Редагувати курс групи",
         callback_data=GroupSelectionOperations(
             user_caller_id=user_caller_id,
             group_external_id=group_external_id,
             action="edit",
         ),
     )
+    if parsers_enabled_for_group is None:
+        m.button(
+            text="🟢 Увімкнути парсери групи",
+            callback_data=GroupSelectionOperations(
+                user_caller_id=user_caller_id,
+                group_external_id=group_external_id,
+                action="enable_group_parser",
+            ),
+        )
+        m.button(
+            text="🛑 Вимкнути парсери групи",
+            callback_data=GroupSelectionOperations(
+                user_caller_id=user_caller_id,
+                group_external_id=group_external_id,
+                action="disable_group_parser",
+            ),
+        )
+    elif parsers_enabled_for_group:
+        m.button(
+            text="🛑 Вимкнути парсери групи",
+            callback_data=GroupSelectionOperations(
+                user_caller_id=user_caller_id,
+                group_external_id=group_external_id,
+                action="disable_group_parser",
+            ),
+        )
+    else:  # False
+        m.button(
+            text="🟢 Увімкнути парсери групи",
+            callback_data=GroupSelectionOperations(
+                user_caller_id=user_caller_id,
+                group_external_id=group_external_id,
+                action="enable_group_parser",
+            ),
+        )
     keyboard = m.adjust(1).as_markup()
     return keyboard
 
