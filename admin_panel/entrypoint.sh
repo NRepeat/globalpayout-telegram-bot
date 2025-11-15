@@ -3,6 +3,9 @@
 # Apply database migrations
 python manage.py migrate
 
+# Collect static files
+python manage.py collectstatic --no-input
+
 # Init initial data like statuses
 python manage.py init_data
 
