@@ -323,15 +323,12 @@ class BoxExchanger:
             response = await self.call(
                 method="GET:admin/exchanger/route/group/get/list"
             )
-
+            print(f"API Response: {response}")
             return GroupsListResponse(**response)
 
         except ValidationError as e:
             # This will catch errors if the API data doesn't match your models
             raise APIError(message=f"Validation error: {str(e)}", error_code=400)
-        except Exception as e:
-            # General error handling
-            raise APIError(message=str(e), error_code=500)
 
     async def get_group_by_id(self, group_external_id: str) -> GroupResponse:
         try:
@@ -344,9 +341,6 @@ class BoxExchanger:
         except ValidationError as e:
             # This will catch errors if the API data doesn't match your models
             raise APIError(message=f"Validation error: {str(e)}", error_code=400)
-        except Exception as e:
-            # General error handling
-            raise APIError(message=str(e), error_code=500)
 
     async def update_manual_group_rate(
         self, group_id: str, from_: float, to: float, updated_at: float
@@ -387,9 +381,6 @@ class BoxExchanger:
         except ValidationError as e:
             # This will catch errors if the API data doesn't match your models
             raise APIError(message=f"Validation error: {str(e)}", error_code=400)
-        except Exception as e:
-            # General error handling
-            raise APIError(message=str(e), error_code=500)
 
     async def call(self, method: str, param=None):
         if param is None:
@@ -435,10 +426,10 @@ class BoxExchanger:
             async with session.request(
                 typeMethod, url, headers=headers, json=post if post else None
             ) as response:
+                print(f"API Response: {response}")
                 if response.status != 200:
-                    text = await response.text()
                     raise APIError(
-                        message=text,
+                        message=f"Request failed with status {response.status}",
                         error_code=response.status,
                     )
 

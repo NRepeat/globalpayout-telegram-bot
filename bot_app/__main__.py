@@ -35,6 +35,7 @@ async def lifespan(app: FastAPI):
     commands_list = [
         BotCommand(command="start", description="Почати роботу"),
         BotCommand(command="rate", description="налаштування напрямів"),
+        BotCommand(command="groups", description="Групи"),
         BotCommand(command="report", description="Звіт"),
         BotCommand(command="stats", description="Статистика"),
     ]

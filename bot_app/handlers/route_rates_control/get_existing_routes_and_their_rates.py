@@ -41,7 +41,7 @@ async def start_rates_control_menu(
         and ("UAH" in route.to.currency.xml or "UAH" in route.from_.currency.xml)
     ]
     await message.answer(
-        f"{user.linked_name_and_username()}, Оберіть напрямок (показано лише активні напрямки з валютою UAH)",
+        f"{user.linked_name_and_username()}, Оберіть напрямок",
         reply_markup=route_selection_markup(uah_active_routes, message.from_user.id),
     )
 

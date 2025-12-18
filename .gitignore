@@ -132,3 +132,4 @@ dmypy.json
 .pyre/
 
 
+curl_command.sh
