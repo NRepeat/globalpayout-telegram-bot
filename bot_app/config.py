@@ -10,7 +10,7 @@ class Settings(BaseSettings):
 
     EXCHANGE_API_KEY: str = ""
     EXCHANGE_SECRET_KEY: str = ""
-    EXCHANGE_BASE_URL: str = "https://www.yogexchanger.com/service/api/v1/"
+    EXCHANGE_BASE_URL: str = "https://www.globalpayout.club/service/api/v1/"
 
     # aiogram settings
     WEBHOOK_HOST: str = ""

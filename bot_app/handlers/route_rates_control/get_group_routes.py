@@ -40,12 +40,13 @@ async def get_group_routes(
     try:
         all_groups = await box_exchanger_client.get_groups()
     except APIError as e:
+        print(f"API Error: {e}")
         await message.answer(
-            f"Помилка при отриманні списку напрямків. {e.message}, {e.error_code}"
+            f"Помилка при отриманні списку напрямків. Код помилки: {e.error_code}"
         )
         return
     await message.answer(
-        f"{user.linked_name_and_username()}, Оберіть напрямок (показано лише активні напрямки з валютою UAH)",
+        f"{user.linked_name_and_username()}, Оберіть напрямок",
         reply_markup=group_selection_markup(all_groups, message.from_user.id),
     )
 
@@ -95,7 +96,7 @@ async def edit_discounts(
     await call.answer()
     await call.message.delete()
     await call.message.answer(
-        f"{user.linked_name_and_username()}, Оберіть напрямок (показано лише активні напрямки з валютою UAH)",
+        f"{user.linked_name_and_username()}, Оберіть напрямок",
         reply_markup=group_route_selection_markup(
             uah_active_routes,
             callback_data.group_external_id,
@@ -123,7 +124,7 @@ async def edit_selected_group(
         await call.answer()
         await aiogram_bot_instance.send_message(
             chat_id=call.message.chat.id,
-            text=f"Помилка при отриманні інформації про напрямок. {e.message}, {e.error_code}",
+            text=f"Помилка при отриманні інформації про напрямок. Код помилки: {e.error_code}",
         )
         return
 
@@ -194,7 +195,7 @@ async def approve_gropu_rate(
         await call.answer()
         await aiogram_bot_instance.send_message(
             chat_id=call.message.chat.id,
-            text=f"{user.linked_name_and_username()}, Помилка при встановленні курсу. {e.message}, {e.error_code}",
+            text=f"{user.linked_name_and_username()}, Помилка при встановленні курсу. Код помилки: {e.error_code}",
         )
 
         return
@@ -206,7 +207,7 @@ async def approve_gropu_rate(
     except APIError as e:
         await aiogram_bot_instance.send_message(
             chat_id=call.message.chat.id,
-            text=f"{user.linked_name_and_username()}, Помилка при отриманні інформації про напрямок. {e.message}, {e.error_code}",
+            text=f"{user.linked_name_and_username()}, Помилка при отриманні інформації про напрямок. Код помилки: {e.error_code}",
         )
         return
     await aiogram_bot_instance.send_message(
@@ -225,7 +226,7 @@ async def approve_gropu_rate(
     except Exception as e:
         await aiogram_bot_instance.send_message(
             chat_id=call.message.chat.id,
-            text=f"{user.linked_name_and_username()}, Помилка при встановленні курсу. {e}",
+            text=f"{user.linked_name_and_username()}, Помилка при встановленні курсу.",
         )
 
         return
