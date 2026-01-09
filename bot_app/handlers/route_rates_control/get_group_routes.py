@@ -91,14 +91,13 @@ async def edit_discounts(
             # Could not fetch route, so we don't know the state.
             # Buttons will be duplicated, which is a fallback.
             pass
-
+            
     uah_active_routes = [route for route in group.routeIds]
+    routes_list = '\n'.join([route.get_formatted_route_name() for route in uah_active_routes])
     await call.answer()
     await call.message.delete()
     await call.message.answer(
-        f"{user.linked_name_and_username()}, Меню редагування группи: {group.name}\n Напрямки:\n {
-', '.join([route.get_formatted_route_name() for route in uah_active_routes])
-        }  \n\nВиберіть дію:",
+        f"{user.linked_name_and_username()}, Меню редагування группи: {group.name}\n Напрямки:\n{routes_list} \n\nВиберіть дію:",
         reply_markup=group_route_selection_markup(
             [],
             callback_data.group_external_id,
