@@ -223,15 +223,15 @@ def group_route_selection_markup(
     parsers_enabled_for_group: bool = None,
 ) -> InlineKeyboardMarkup | ReplyKeyboardMarkup:
     m = InlineKeyboardBuilder()
-    for route in routes:
-        m.button(
-            text=route.get_formatted_route_name(),
-            callback_data=RouteSelectionOperations(
-                user_caller_id=user_caller_id,
-                route_external_id=route.id,
-                action="select",
-            ),
-        )
+    # for route in routes:
+    #     m.button(
+    #         text=route.get_formatted_route_name(),
+    #         callback_data=RouteSelectionOperations(
+    #             user_caller_id=user_caller_id,
+    #             route_external_id=route.id,
+    #             action="select",
+    #         ),
+    #     )
 
     m.button(
         text="❌ Відмінити",

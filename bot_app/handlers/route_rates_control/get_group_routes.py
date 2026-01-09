@@ -98,7 +98,7 @@ async def edit_discounts(
     await call.message.answer(
         f"{user.linked_name_and_username()}, Оберіть напрямок",
         reply_markup=group_route_selection_markup(
-            uah_active_routes,
+            [],
             callback_data.group_external_id,
             call.from_user.id,
             parsers_enabled_for_group=parsers_enabled_for_group,
