@@ -96,7 +96,9 @@ async def edit_discounts(
     await call.answer()
     await call.message.delete()
     await call.message.answer(
-        f"{user.linked_name_and_username()}, Оберіть напрямок",
+        f"{user.linked_name_and_username()}, Меню редагування группи: {group.name}\n Напрямки:\n {
+', '.join([route.get_formatted_route_name() for route in uah_active_routes])
+        }  \n\nВиберіть дію:",
         reply_markup=group_route_selection_markup(
             [],
             callback_data.group_external_id,
