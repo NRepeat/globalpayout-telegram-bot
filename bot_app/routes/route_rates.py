@@ -25,7 +25,7 @@ rates_router = APIRouter(
 async def get_rates(uid: str):
     print(uid)
 
-    return {"rates": ""}
+    return {"rates": uid}
 
 
 @rates_router.post("/update")
