@@ -47,7 +47,7 @@ async def update_rate(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Access key is not valid",
         )
-
+    print(data)
     groups = {
         "iban_uah": "65f337eb0298bbbe86d7d9c8",
         "card_uah": "691ae0a95de47f64ab1f98b7",
@@ -74,7 +74,7 @@ async def update_rate(
         if not group or not group.routeIds:
             return {"error": "Направления в группе не найдены"}, 404
 
-        await update_curency_rates.update_curency_rates(group.routeIds, data.rate_to)
+        # await update_curency_rates.update_curency_rates(group.routeIds, data.rate_to)
         print(f"Все направления ({len(group.routeIds)}) внутри группы обновлены.")
 
     except Exception as e:
