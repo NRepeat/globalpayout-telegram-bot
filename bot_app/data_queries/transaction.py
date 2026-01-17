@@ -1,6 +1,5 @@
 import datetime
 import uuid
-from typing import Optional
 from uuid import UUID
 
 import pytz
@@ -17,7 +16,7 @@ from bot_app.schemas.transaction import NewTransaction, TransactionResponse
 
 async def new_transaction(
     conn: Connection, transaction: NewTransaction
-) -> TransactionResponse:
+) -> TransactionResponse | None:
     now_time_with_timezone = datetime.datetime.now(tz=pytz.timezone(settings.TIME_ZONE))
     new_transaction_uuid = str(uuid.uuid4())
 
@@ -37,7 +36,7 @@ async def new_transaction(
         %s, %s, %s, %s
     )
   """
-    print(transaction)
+
     params = (
         new_transaction_uuid,
         transaction.external_order_id,
@@ -68,7 +67,7 @@ async def new_transaction(
 
 async def get_transaction_by_uuid(
     conn: Connection, transaction_uuid: str
-) -> Optional[TransactionResponse]:
+) -> TransactionResponse | None:
     query = """
     SELECT
         uuid, external_order_id, data_status.status_code,

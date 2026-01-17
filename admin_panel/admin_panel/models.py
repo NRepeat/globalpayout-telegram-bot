@@ -78,7 +78,7 @@ class ExchangeTransaction(models.Model):
     currency = models.CharField(max_length=36, blank=True, null=True)
     currency_xml_code = models.CharField(max_length=36, blank=True, null=True)
     amount = models.FloatField()
-    amount = models.FloatField()
+    rates = models.FloatField(blank=True, null=True)
 
     full_name = models.CharField(max_length=250, null=True, blank=True)
     card_number = models.CharField(max_length=100, null=True, blank=True)

@@ -415,7 +415,6 @@ class BoxExchanger:
         url = f"{self.base_url}{method}?{url_params}"
         url_params += f"&time={get['time']}" if "time" in get else ""
         request_hash = self.generate_hash(get, post)
-
         async with aiohttp.ClientSession() as session:
             headers = {
                 "content-type": "application/json",
@@ -454,3 +453,14 @@ class BoxExchanger:
                         "message": f"Error response not json: {text}",
                         "errorCode": response.status,
                     }
+
+    async def getCurrentOrderDetails(self, id):
+        order = await self.call(
+            method="GET:/admin/exchanger/order/get",
+            param={"get": {"uid": id}},
+        )
+        if order is None:
+            print(f"Order with ID {id} not found")
+            return None
+
+        return order

@@ -9,6 +9,7 @@ from bot_app.misc import aiogram_router
 
 @aiogram_router.message(Command("start"))
 async def handle_start(message: Message, db_connection: Connection, state: FSMContext):
+    print("start",message)
     await state.clear()
     if not await get_user_by_id(db_connection, message.from_user.id):
         await save_user(db_connection, message.from_user)

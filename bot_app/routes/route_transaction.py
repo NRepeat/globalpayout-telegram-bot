@@ -12,6 +12,7 @@ from bot_app.data_queries.transaction import (
     update_posted_information,
     update_transaction_usdt_value,
 )
+from bot_app.exchange_methods import BoxExchanger
 from bot_app.markup.base import claim_transaction_markup
 from bot_app.misc import aiogram_bot_instance, box_exchanger_client
 from bot_app.schemas.transaction import NewTransaction, TransactionResponse
@@ -37,9 +38,32 @@ async def submit_transaction(
     db_connection: Connection = Depends(get_db_connection),
     authorization: str | None = Header(default=None),
 ) -> TransactionResponse:
-    created_transaction: TransactionResponse = await new_transaction(
-        db_connection, transaction_data
-    )
+    boxApi = BoxExchanger()
+    try:
+        response = await boxApi.getCurrentOrderDetails(
+            transaction_data.external_order_id
+        )
+
+        if response and isinstance(response, dict) and "order" in response:
+            order_details = response["order"]
+
+            transaction_data.usdt_amount = order_details.get("inAmount", 0.0)
+            transaction_data.rates = order_details.get("rate", 0.0)
+
+            print(
+                f"Данные успешно обновлены: Сумма {transaction_data.usdt_amount}, Курс {transaction_data.rates}"
+            )
+        else:
+            print(
+                f"Предупреждение: Заказ {transaction_data.external_order_id} не найден или структура ответа изменилась."
+            )
+
+    except Exception as e:
+        # Любая ошибка (сеть, тип данных и т.д.) будет поймана здесь
+        print(f"Произошла ошибка при обработке заказа: {e}")
+        # Бот продолжает работу дальше
+
+    created_transaction = await new_transaction(db_connection, transaction_data)
     # if authorization is None:
     #     raise HTTPException(
     #         status_code=status.HTTP_401_UNAUTHORIZED,

@@ -36,7 +36,8 @@ class NewTransaction(BaseModel):
         None, description="E-wallet email (Wise, PayPal, methodType 3)"
     )
     revtag: str | None = Field(None, description="Revolut Tag (для methodType 4)")
-
+    usdt_amount: float | None = Field(None, description="USDT Amount")
+    rates: float | None = Field(None, description="Rates")
     model_config = {
         "from_attributes": True,
         "json_schema_extra": {

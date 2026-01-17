@@ -8,6 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from bot_app.config import __version__, settings
 from bot_app.data_queries import db
 from bot_app.misc import aiogram_bot_instance, log_out_from_telegram_api
+from bot_app.routes.route_rates import rates_router
 from bot_app.routes.route_transaction import transaction_router
 from bot_app.routes.system.bot_settings import root_router
 
@@ -68,6 +69,7 @@ app.add_middleware(
 
 app.include_router(root_router)
 app.include_router(transaction_router)
+app.include_router(rates_router)
 
 if __name__ == "__main__":
     uvicorn.run(app, host=settings.SERVER_ADDRESS, port=int(settings.SERVER_PORT))
