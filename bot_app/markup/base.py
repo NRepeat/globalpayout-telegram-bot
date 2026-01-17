@@ -292,8 +292,8 @@ def group_selection_markup(
 ) -> InlineKeyboardMarkup | ReplyKeyboardMarkup:
     m = InlineKeyboardBuilder()
 
-    # FIX 1: Iterate over groups.groups, which is the actual list
     for group in groups.groups:
+        print(group.id,group.name)
         m.button(
             text=group.name,
             callback_data=GroupSelectionOperations(

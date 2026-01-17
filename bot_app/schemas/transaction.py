@@ -76,7 +76,8 @@ class TransactionResponse(BaseModel):
     payment_note: str | None = Field(None, description="Payment Note (for SEPA)")
     payout_email: str | None = Field(None, description="E-wallet email")
     revtag: str | None = Field(None, description="Revolut Tag")
-
+    usdt_amount: float | None = Field(None, description="USDT Amount")
+    rates: float | None = Field(None, description="Rates")
     model_config = {
         "from_attributes": True,
         "json_schema_extra": {
@@ -156,6 +157,12 @@ class TransactionResponse(BaseModel):
             f"🆔 <b>Ідентифікатор транзакції:</b> <code>{self.uuid}</code>\n"
             f"🆔 <b>Номер заявки:</b> <code>{self.external_order_id}</code>\n"
             f"💰 <b>Сума:</b> <code>{self.amount} {self.currency}</code>\n"
+        )
+        if self.usdt_amount is not None:
+            text += f"💰 <b>Внесена сума:</b> <code>{self.usdt_amount} USDT</code>\n"
+        if self.rates is not None:
+            text += f"📊 <b>Курс:</b> <code>{self.rates:.2f}</code>\n"
+        text += (
             f"💱 <b>Сервіс:</b> <code>{self.service_name or 'N/A'}</code>\n"
             f"🔔 <b>Статус:</b> {self.status_codes_to_emoji(self.status_code)} {self.status_code}\n"
             f"--- <b>Реквізити</b> ---\n"

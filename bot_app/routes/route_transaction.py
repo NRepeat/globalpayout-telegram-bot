@@ -59,9 +59,7 @@ async def submit_transaction(
             )
 
     except Exception as e:
-        # Любая ошибка (сеть, тип данных и т.д.) будет поймана здесь
         print(f"Произошла ошибка при обработке заказа: {e}")
-        # Бот продолжает работу дальше
 
     created_transaction = await new_transaction(db_connection, transaction_data)
     # if authorization is None:
