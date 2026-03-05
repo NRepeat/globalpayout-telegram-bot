@@ -56,10 +56,11 @@ async def update_rate(
         "usdt_trc20_eur": "690b289b12cbddc25ad393d6",
         "usdt_trc20_aed": "6983572deaa006bd41272d3f",
         "usdt_trc20_pln": "698359a5eaa006bd41273270",
-        "usdt_trc20_cny": "698359cf4af95d38d0990a16",
+        "usdt_trc20_cny_wechat": "69a95fba760f906de406bc6f",
+        "usdt_trc20_cny_alipay": "69a95fe8d80d11edf2329b68",
+        "usdt_trc20_cny_card": "69a9603dd80d11edf2329bdb",
         "usdt_trc20_azn": "69835a254af95d38d0990a8a",
         "usdt_trc20_try": "69a950ab760f906de406acac",
-        
     }
 
     target_group_id = groups.get(data.type)
