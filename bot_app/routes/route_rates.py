@@ -34,7 +34,7 @@ async def update_rate(
     db_connection: Connection = Depends(get_db_connection),
     authorization: str | None = Header(default=None),
 ):
-    print(authorization)
+    
     if authorization is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -51,9 +51,15 @@ async def update_rate(
     groups = {
         "iban_uah": "65f337eb0298bbbe86d7d9c8",
         "card_uah": "691ae0a95de47f64ab1f98b7",
-        "usdt_trc20": "6909d72b995c6afb48a4199a",
-        "usdt_trc20_kzt": "690b1a4b12cbddc25ad34be3",
+        "usdt_trc20_usd": "690b1a4b12cbddc25ad34be3",
+        "usdt_trc20_kzt": "6909d72b995c6afb48a4199a",
         "usdt_trc20_eur": "690b289b12cbddc25ad393d6",
+        "usdt_trc20_aed": "6983572deaa006bd41272d3f",
+        "usdt_trc20_pln": "698359a5eaa006bd41273270",
+        "usdt_trc20_cny": "698359cf4af95d38d0990a16",
+        "usdt_trc20_azn": "69835a254af95d38d0990a8a",
+        "usdt_trc20_try": "69a950ab760f906de406acac",
+        
     }
 
     target_group_id = groups.get(data.type)
