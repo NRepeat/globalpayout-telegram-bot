@@ -36,6 +36,9 @@ class NewTransaction(BaseModel):
         None, description="E-wallet email (Wise, PayPal, methodType 3)"
     )
     revtag: str | None = Field(None, description="Revolut Tag (для methodType 4)")
+    wallet_address: str | None = Field(None, description="Crypto wallet address (для methodType 5)")
+    bank_name: str | None = Field(None, description="Bank name (для methodType 0, 6)")
+    photo: str | None = Field(None, description="QR code photo file_id (для methodType 7, 8)")
     usdt_amount: float | None = Field(None, description="USDT Amount")
     rates: float | None = Field(None, description="Rates")
     model_config = {
@@ -76,6 +79,9 @@ class TransactionResponse(BaseModel):
     payment_note: str | None = Field(None, description="Payment Note (for SEPA)")
     payout_email: str | None = Field(None, description="E-wallet email")
     revtag: str | None = Field(None, description="Revolut Tag")
+    wallet_address: str | None = Field(None, description="Crypto wallet address")
+    bank_name: str | None = Field(None, description="Bank name")
+    photo: str | None = Field(None, description="QR code photo file_id")
     usdt_amount: float | None = Field(None, description="USDT Amount")
     rates: float | None = Field(None, description="Rates")
     model_config = {
@@ -106,6 +112,12 @@ class TransactionResponse(BaseModel):
         if self.method_type == 0:
             details.append(f"💳 <b>Карта:</b> <code>{self.card_number}</code>")
             details.append(f"👤 <b>ФИО:</b> <code>{self.full_name}</code>")
+            if self.bank_name:
+                details.append(f"🏦 <b>Банк:</b> <code>{self.bank_name}</code>")
+            if self.iban:
+                details.append(f"🏦 <b>IBAN:</b> <code>{self.iban}</code>")
+            if self.payment_note:
+                details.append(f"📝 <b>Призначення:</b> <code>{self.payment_note}</code>")
 
         # Method 1: IBAN UAH
         elif self.method_type == 1:
@@ -133,6 +145,25 @@ class TransactionResponse(BaseModel):
         elif self.method_type == 4:
             details.append(f"📱 <b>Revtag:</b> <code>{self.revtag}</code>")
             details.append(f"👤 <b>ФИО:</b> <code>{self.full_name}</code>")
+
+        # Method 5: Crypto
+        elif self.method_type == 5:
+            details.append(f"🔐 <b>Гаманець:</b> <code>{self.wallet_address}</code>")
+
+        # Method 6: IBAN International
+        elif self.method_type == 6:
+            details.append(f"🌐 <b>IBAN (міжнар.):</b> <code>{self.iban}</code>")
+            details.append(f"👤 <b>ФИО:</b> <code>{self.full_name}</code>")
+            if self.bank_name:
+                details.append(f"🏦 <b>Банк:</b> <code>{self.bank_name}</code>")
+
+        # Method 7: CNY AliPay
+        elif self.method_type == 7:
+            details.append(f"📷 <b>AliPay QR:</b> <code>{self.photo}</code>")
+
+        # Method 8: CNY WeChat
+        elif self.method_type == 8:
+            details.append(f"📷 <b>WeChat QR:</b> <code>{self.photo}</code>")
 
         else:
             # Обработка старых заявок, где method_type = None

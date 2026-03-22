@@ -100,6 +100,9 @@ class ExchangeTransaction(models.Model):
     payment_note = models.CharField(max_length=255, null=True, blank=True)
     payout_email = models.EmailField(null=True, blank=True)
     revtag = models.CharField(max_length=50, null=True, blank=True)
+    wallet_address = models.CharField(max_length=200, null=True, blank=True)
+    bank_name = models.CharField(max_length=255, null=True, blank=True)
+    photo = models.TextField(null=True, blank=True)
 
     class Meta:
         db_table = "exchange_transaction"
@@ -116,6 +119,12 @@ class ExchangeTransaction(models.Model):
         if self.method_type == 0:
             details.append(f"💳 Карта: `{self.card_number}`")
             details.append(f"👤 ФИО: `{self.full_name}`")
+            if self.bank_name:
+                details.append(f"🏦 Банк: `{self.bank_name}`")
+            if self.iban:
+                details.append(f"🏦 IBAN: `{self.iban}`")
+            if self.payment_note:
+                details.append(f"📝 Призначення: `{self.payment_note}`")
 
         # Method 1: IBAN UAH
         elif self.method_type == 1:
@@ -139,6 +148,25 @@ class ExchangeTransaction(models.Model):
         elif self.method_type == 4:
             details.append(f"📱 Revtag: `{self.revtag}`")
             details.append(f"👤 ФИО: `{self.full_name}`")
+
+        # Method 5: Crypto
+        elif self.method_type == 5:
+            details.append(f"🔐 Гаманець: `{self.wallet_address}`")
+
+        # Method 6: IBAN International
+        elif self.method_type == 6:
+            details.append(f"🌐 IBAN (міжнар.): `{self.iban}`")
+            details.append(f"👤 ФИО: `{self.full_name}`")
+            if self.bank_name:
+                details.append(f"🏦 Банк: `{self.bank_name}`")
+
+        # Method 7: CNY AliPay
+        elif self.method_type == 7:
+            details.append(f"📷 AliPay QR: `{self.photo}`")
+
+        # Method 8: CNY WeChat
+        elif self.method_type == 8:
+            details.append(f"📷 WeChat QR: `{self.photo}`")
 
         else:
             # Обработка старых заявок, где method_type = None

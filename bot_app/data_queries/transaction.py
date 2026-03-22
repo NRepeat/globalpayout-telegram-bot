@@ -20,7 +20,6 @@ async def new_transaction(
     now_time_with_timezone = datetime.datetime.now(tz=pytz.timezone(settings.TIME_ZONE))
     new_transaction_uuid = str(uuid.uuid4())
 
-    # Проверьте: 19 колонок
     query = """
     INSERT INTO exchange_transaction (
         uuid, external_order_id, status_id,
@@ -28,6 +27,7 @@ async def new_transaction(
         card_number, full_name,
         method_type, service_name, iban, inn,
         recipient_name, payment_note, payout_email, revtag,
+        wallet_address, bank_name, photo,
         usdt_amount, rates
     )
     VALUES (
@@ -36,11 +36,11 @@ async def new_transaction(
         %s, %s,
         %s, %s, %s, %s,
         %s, %s, %s, %s,
+        %s, %s, %s,
         %s, %s
     )
     """
 
-    # Проверьте: 19 параметров
     params = (
         new_transaction_uuid,           # 1
         transaction.external_order_id,  # 2
@@ -59,8 +59,11 @@ async def new_transaction(
         transaction.payment_note,       # 15
         transaction.payout_email,       # 16
         transaction.revtag,             # 17
-        transaction.usdt_amount,        # 18 (Новое)
-        transaction.rates               # 19 (Новое)
+        transaction.wallet_address,     # 18
+        transaction.bank_name,          # 19
+        transaction.photo,              # 20
+        transaction.usdt_amount,        # 21
+        transaction.rates               # 22
     )
 
     async with conn.cursor() as cur:
@@ -79,6 +82,7 @@ async def get_transaction_by_uuid(
         card_number, created_at,
         method_type, service_name, iban, inn,
         recipient_name, payment_note, payout_email, revtag,
+        wallet_address, bank_name, photo,
         usdt_amount, rates
     FROM exchange_transaction
     JOIN data_status ON exchange_transaction.status_id = data_status.record_id
