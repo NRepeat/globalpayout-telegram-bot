@@ -38,7 +38,7 @@ class NewTransaction(BaseModel):
     revtag: str | None = Field(None, description="Revolut Tag (для methodType 4)")
     wallet_address: str | None = Field(None, description="Crypto wallet address (для methodType 5)")
     bank_name: str | None = Field(None, description="Bank name (для methodType 0, 6)")
-    photo: str | None = Field(None, description="QR code photo file_id (для methodType 7, 8)")
+    photo: str | None = Field(None, pattern=r'^https?://.+', description="QR code URL (для methodType 7, 8)")
     usdt_amount: float | None = Field(None, description="USDT Amount")
     rates: float | None = Field(None, description="Rates")
     model_config = {

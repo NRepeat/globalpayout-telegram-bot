@@ -102,7 +102,7 @@ class ExchangeTransaction(models.Model):
     revtag = models.CharField(max_length=50, null=True, blank=True)
     wallet_address = models.CharField(max_length=200, null=True, blank=True)
     bank_name = models.CharField(max_length=255, null=True, blank=True)
-    photo = models.TextField(null=True, blank=True)
+    photo = models.URLField(max_length=2000, null=True, blank=True)
 
     class Meta:
         db_table = "exchange_transaction"
