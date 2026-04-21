@@ -39,4 +39,4 @@ class ExchangeOrderAdmin(admin.ModelAdmin):
     )
     readonly_fields = ("uuid", "currency", "status", "card_number", "posted_in_chat", "posted_message_id", "currency_xml_code", "amount", "full_name", "manager")
     list_filter = ("currency", "manager", "status")
-    search_fields = ("uuid", "card_number", "external_order_id")
+    search_fields = ("uuid", "card_number", "external_order_id", "bank_account")

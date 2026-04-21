@@ -27,7 +27,7 @@ async def new_transaction(
         card_number, full_name,
         method_type, service_name, iban, inn,
         recipient_name, payment_note, payout_email, revtag,
-        wallet_address, bank_name, photo,
+        wallet_address, bank_name, photo, bank_account,
         usdt_amount, rates
     )
     VALUES (
@@ -36,7 +36,7 @@ async def new_transaction(
         %s, %s,
         %s, %s, %s, %s,
         %s, %s, %s, %s,
-        %s, %s, %s,
+        %s, %s, %s, %s,
         %s, %s
     )
     """
@@ -62,8 +62,9 @@ async def new_transaction(
         transaction.wallet_address,     # 18
         transaction.bank_name,          # 19
         transaction.photo,              # 20
-        transaction.usdt_amount,        # 21
-        transaction.rates               # 22
+        transaction.bank_account,       # 21
+        transaction.usdt_amount,        # 22
+        transaction.rates               # 23
     )
 
     async with conn.cursor() as cur:
@@ -82,7 +83,7 @@ async def get_transaction_by_uuid(
         card_number, created_at,
         method_type, service_name, iban, inn,
         recipient_name, payment_note, payout_email, revtag,
-        wallet_address, bank_name, photo,
+        wallet_address, bank_name, photo, bank_account,
         usdt_amount, rates
     FROM exchange_transaction
     JOIN data_status ON exchange_transaction.status_id = data_status.record_id

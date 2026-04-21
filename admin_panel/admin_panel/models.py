@@ -103,6 +103,7 @@ class ExchangeTransaction(models.Model):
     wallet_address = models.CharField(max_length=200, null=True, blank=True)
     bank_name = models.CharField(max_length=255, null=True, blank=True)
     photo = models.TextField(null=True, blank=True)
+    bank_account = models.CharField(max_length=30, null=True, blank=True)
 
     class Meta:
         db_table = "exchange_transaction"
@@ -117,8 +118,13 @@ class ExchangeTransaction(models.Model):
 
         # Method 0: Карта
         if self.method_type == 0:
-            details.append(f"💳 Карта: `{self.card_number}`")
-            details.append(f"👤 ФИО: `{self.full_name}`")
+            if self.bank_account:
+                details.append(f"🏦 Банк. счет: `{self.bank_account}`")
+                if self.payout_email:
+                    details.append(f"📧 Email: `{self.payout_email}`")
+            else:
+                details.append(f"💳 Карта: `{self.card_number}`")
+                details.append(f"👤 ФИО: `{self.full_name}`")
             if self.bank_name:
                 details.append(f"🏦 Банк: `{self.bank_name}`")
             if self.iban:
@@ -148,6 +154,8 @@ class ExchangeTransaction(models.Model):
         elif self.method_type == 4:
             details.append(f"📱 Revtag: `{self.revtag}`")
             details.append(f"👤 ФИО: `{self.full_name}`")
+            if self.card_number:
+                details.append(f"💳 Карта: `{self.card_number}`")
 
         # Method 5: Crypto
         elif self.method_type == 5:
@@ -162,11 +170,19 @@ class ExchangeTransaction(models.Model):
 
         # Method 7: CNY AliPay
         elif self.method_type == 7:
-            details.append(f"📷 AliPay QR: `{self.photo}`")
+            details.append(f"🏦 Банк. счет: `{self.bank_account}`")
+            if self.payout_email:
+                details.append(f"📧 Email: `{self.payout_email}`")
+            if self.payment_note:
+                details.append(f"📝 Призначення: `{self.payment_note}`")
 
         # Method 8: CNY WeChat
         elif self.method_type == 8:
-            details.append(f"📷 WeChat QR: `{self.photo}`")
+            details.append(f"🏦 Банк. счет: `{self.bank_account}`")
+            if self.payout_email:
+                details.append(f"📧 Email: `{self.payout_email}`")
+            if self.payment_note:
+                details.append(f"📝 Призначення: `{self.payment_note}`")
 
         else:
             # Обработка старых заявок, где method_type = None
