@@ -10,10 +10,10 @@ from bot_app.schemas.user import SavedUser
 
 
 class NewTransaction(BaseModel):
-    external_order_id: str = Field(..., description="External Application ID")
-    currency: str = Field(..., description="Currency")
-    currency_xml_code: str = Field(..., description="Currency XML Code")
-    amount: float = Field(..., description="Amount")
+    external_order_id: str = Field(..., min_length=1, max_length=128, description="External Application ID")
+    currency: str = Field(..., min_length=1, max_length=16, description="Currency")
+    currency_xml_code: str = Field(..., min_length=1, max_length=32, description="Currency XML Code")
+    amount: float = Field(..., gt=0, description="Amount")
 
     method_type: int = Field(..., description="Payment method type ID")
     service_name: str = Field(
@@ -40,8 +40,8 @@ class NewTransaction(BaseModel):
     bank_name: str | None = Field(None, description="Bank name (для methodType 0, 6)")
     photo: str | None = Field(None, description="QR code photo file_id (для methodType 7, 8)")
     bank_account: str | None = Field(None, description="Bank account number (для CNY methodType 0, 7, 8)")
-    usdt_amount: float | None = Field(None, description="USDT Amount")
-    rates: float | None = Field(None, description="Rates")
+    usdt_amount: float | None = Field(None, gt=0, description="USDT Amount")
+    rates: float | None = Field(None, gt=0, description="Rates")
     model_config = {
         "from_attributes": True,
         "json_schema_extra": {
