@@ -38,6 +38,26 @@ async def submit_transaction(
     db_connection: Connection = Depends(get_db_connection),
     authorization: str | None = Header(default=None),
 ) -> TransactionResponse:
+    if authorization is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Authorization header is required",
+        )
+
+    parts = authorization.split(" ")
+    if len(parts) != 2 or parts[0].lower() != "bearer" or not parts[1]:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Authorization header is malformed",
+        )
+
+    key_data = await get_access_key(db_connection, parts[1])
+    if not key_data:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Access key is not valid",
+        )
+
     boxApi = BoxExchanger()
     try:
         response = await boxApi.getCurrentOrderDetails(
@@ -62,18 +82,6 @@ async def submit_transaction(
         print(f"Произошла ошибка при обработке заказа: {e}")
 
     created_transaction = await new_transaction(db_connection, transaction_data)
-    # if authorization is None:
-    #     raise HTTPException(
-    #         status_code=status.HTTP_401_UNAUTHORIZED,
-    #         detail="Authorization header is required",
-    #     )
-
-    # key_data = await get_access_key(db_connection, authorization.split(" ")[1])
-    # if not key_data:
-    #     raise HTTPException(
-    #         status_code=status.HTTP_401_UNAUTHORIZED,
-    #         detail="Access key is not valid",
-    #     )
     # I am not sure I can get that from module itself so we are storing currencies id's into database to not fetch all of them each time we need them
     # currency_id = await get_user_rate_by_currency_xml_code(db_connection, created_transaction.currency_xml_code)
     # order_extra_info = await box_exchanger_client.get_order_info(
@@ -133,17 +141,25 @@ async def get_transaction(
     db_connection: Connection = Depends(get_db_connection),
     authorization: str | None = Header(default=None),
 ) -> dict:
-    # if authorization is None:
-    #     raise HTTPException(
-    #         status_code=status.HTTP_401_UNAUTHORIZED,
-    #         detail="Authorization header is required",
-    #     )
-    # key_data = await get_access_key(db_connection, authorization.split(" ")[1])
-    # if not key_data:
-    #     raise HTTPException(
-    #         status_code=status.HTTP_401_UNAUTHORIZED,
-    #         detail="Access key is not valid",
-    #     )
+    if authorization is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Authorization header is required",
+        )
+
+    parts = authorization.split(" ")
+    if len(parts) != 2 or parts[0].lower() != "bearer" or not parts[1]:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Authorization header is malformed",
+        )
+
+    key_data = await get_access_key(db_connection, parts[1])
+    if not key_data:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Access key is not valid",
+        )
     transaction_data: TransactionResponse | None = await get_transaction_by_uuid(
         db_connection, transaction_id
     )
