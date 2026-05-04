@@ -1,8 +1,11 @@
+import hmac
 from decimal import ROUND_DOWN, Decimal
+from typing import Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Header, HTTPException, status
 
+from bot_app.config import settings
 from bot_app.data_queries import Connection, get_db_connection
 from bot_app.data_queries.api_allowed_keys import get_access_key
 from bot_app.data_queries.chat import get_transaction_target_chat
@@ -16,6 +19,47 @@ from bot_app.exchange_methods import BoxExchanger
 from bot_app.markup.base import claim_transaction_markup
 from bot_app.misc import aiogram_bot_instance, box_exchanger_client
 from bot_app.schemas.transaction import NewTransaction, TransactionResponse
+
+
+async def _authenticate(
+    db_connection: Connection,
+    authorization: str | None,
+    x_api_secret: str | None,
+) -> None:
+    if not settings.TRANSACTION_API_SECRET:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Server is not configured",
+        )
+
+    if authorization is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Authorization header is required",
+        )
+
+    parts = authorization.split(" ")
+    if len(parts) != 2 or parts[0].lower() != "bearer" or not parts[1]:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Authorization header is malformed",
+        )
+
+    if not x_api_secret or not hmac.compare_digest(
+        x_api_secret, settings.TRANSACTION_API_SECRET
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="X-Api-Secret header is missing or invalid",
+        )
+
+    key_data = await get_access_key(db_connection, parts[1])
+    if not key_data:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Access key is not valid",
+        )
+
 
 transaction_router = APIRouter(
     prefix="/transaction",
@@ -37,26 +81,9 @@ async def submit_transaction(
     transaction_data: NewTransaction,
     db_connection: Connection = Depends(get_db_connection),
     authorization: str | None = Header(default=None),
+    x_api_secret: Annotated[str | None, Header()] = None,
 ) -> TransactionResponse:
-    if authorization is None:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Authorization header is required",
-        )
-
-    parts = authorization.split(" ")
-    if len(parts) != 2 or parts[0].lower() != "bearer" or not parts[1]:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Authorization header is malformed",
-        )
-
-    key_data = await get_access_key(db_connection, parts[1])
-    if not key_data:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Access key is not valid",
-        )
+    await _authenticate(db_connection, authorization, x_api_secret)
 
     boxApi = BoxExchanger()
     try:
@@ -140,26 +167,9 @@ async def get_transaction(
     transaction_id: UUID,
     db_connection: Connection = Depends(get_db_connection),
     authorization: str | None = Header(default=None),
+    x_api_secret: Annotated[str | None, Header()] = None,
 ) -> dict:
-    if authorization is None:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Authorization header is required",
-        )
-
-    parts = authorization.split(" ")
-    if len(parts) != 2 or parts[0].lower() != "bearer" or not parts[1]:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Authorization header is malformed",
-        )
-
-    key_data = await get_access_key(db_connection, parts[1])
-    if not key_data:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Access key is not valid",
-        )
+    await _authenticate(db_connection, authorization, x_api_secret)
     transaction_data: TransactionResponse | None = await get_transaction_by_uuid(
         db_connection, transaction_id
     )

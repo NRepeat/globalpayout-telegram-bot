@@ -8,6 +8,8 @@ class Settings(BaseSettings):
     TELEGRAM_BOT_TOKEN: str = ""
     TELEGRAM_WEBHOOK_SECRET: str = ""
 
+    TRANSACTION_API_SECRET: str = ""
+
     EXCHANGE_API_KEY: str = ""
     EXCHANGE_SECRET_KEY: str = ""
     EXCHANGE_BASE_URL: str = "https://www.globalpayout.club/service/api/v1/"
