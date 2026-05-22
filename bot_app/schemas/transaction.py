@@ -40,6 +40,19 @@ class NewTransaction(BaseModel):
     bank_name: str | None = Field(None, description="Bank name (для methodType 0, 6)")
     photo: str | None = Field(None, description="QR code photo file_id (для methodType 7, 8)")
     bank_account: str | None = Field(None, description="Bank account number (для CNY methodType 0, 7, 8)")
+    country: str | None = Field(None, description="Country (CARD/USD, CARD/EUR, IBAN_INTL/USD)")
+    sort_code: str | None = Field(None, description="Sort Code (GBP)")
+    account_number: str | None = Field(None, description="Account Number (GBP, INR)")
+    phone: str | None = Field(None, description="Phone (m10 AZN, Elcart KGS, MDL CARD)")
+    idram_account: str | None = Field(None, description="Idram Account (AMD)")
+    ifsc: str | None = Field(None, description="IFSC Code (INR)")
+    upi_id: str | None = Field(None, description="UPI ID (INR)")
+    paytm_wallet: str | None = Field(None, description="Paytm Wallet (INR)")
+    pix_keys: str | None = Field(None, description="Pix Keys (BRL)")
+    cpf: str | None = Field(None, description="CPF (BRL)")
+    cvu_cbu: str | None = Field(None, description="CVU / CBU / SBU (ARS)")
+    separate_direction: str | None = Field(None, description="Separate direction (GEL)")
+    telegram: str | None = Field(None, description="Telegram username (ATM_QR BRL)")
     usdt_amount: float | None = Field(None, gt=0, description="USDT Amount")
     rates: float | None = Field(None, gt=0, description="Rates")
     model_config = {
@@ -84,6 +97,19 @@ class TransactionResponse(BaseModel):
     bank_name: str | None = Field(None, description="Bank name")
     photo: str | None = Field(None, description="QR code photo file_id")
     bank_account: str | None = Field(None, description="Bank account number (CNY)")
+    country: str | None = Field(None, description="Country")
+    sort_code: str | None = Field(None, description="Sort Code (GBP)")
+    account_number: str | None = Field(None, description="Account Number")
+    phone: str | None = Field(None, description="Phone")
+    idram_account: str | None = Field(None, description="Idram Account")
+    ifsc: str | None = Field(None, description="IFSC Code")
+    upi_id: str | None = Field(None, description="UPI ID")
+    paytm_wallet: str | None = Field(None, description="Paytm Wallet")
+    pix_keys: str | None = Field(None, description="Pix Keys")
+    cpf: str | None = Field(None, description="CPF")
+    cvu_cbu: str | None = Field(None, description="CVU / CBU / SBU")
+    separate_direction: str | None = Field(None, description="Separate direction")
+    telegram: str | None = Field(None, description="Telegram username")
     usdt_amount: float | None = Field(None, description="USDT Amount")
     rates: float | None = Field(None, description="Rates")
     model_config = {
@@ -107,91 +133,166 @@ class TransactionResponse(BaseModel):
         else:
             return "❓"
 
-    def _build_details_block(self) -> str:
-        details = []
+    def _row(self, emoji: str, label: str, value) -> str | None:
+        if value in (None, ""):
+            return None
+        return f"{emoji} <b>{label}:</b> <code>{value}</code>"
 
-        # Method 0: Карта
-        if self.method_type == 0:
+    def _build_details_block(self) -> str:
+        r = self._row
+        m = self.method_type
+        rows: list[str | None] = []
+
+        # Method 0: CARD (multi-currency variants)
+        if m == 0:
             if self.bank_account:
-                details.append(f"🏦 <b>Банк. счет:</b> <code>{self.bank_account}</code>")
-                if self.payout_email:
-                    details.append(f"📧 <b>Email:</b> <code>{self.payout_email}</code>")
+                rows.append(r("🏦", "Банк. счет", self.bank_account))
+                rows.append(r("📧", "Email", self.payout_email))
             else:
-                details.append(f"💳 <b>Карта:</b> <code>{self.card_number}</code>")
-                details.append(f"👤 <b>ФИО:</b> <code>{self.full_name}</code>")
-            if self.bank_name:
-                details.append(f"🏦 <b>Банк:</b> <code>{self.bank_name}</code>")
-            if self.iban:
-                details.append(f"🏦 <b>IBAN:</b> <code>{self.iban}</code>")
-            if self.payment_note:
-                details.append(f"📝 <b>Призначення:</b> <code>{self.payment_note}</code>")
+                rows.append(r("💳", "Карта", self.card_number))
+                rows.append(r("👤", "ФИО", self.full_name))
+            rows.append(r("👤", "Получатель", self.recipient_name))
+            rows.append(r("🏦", "Банк", self.bank_name))
+            rows.append(r("🏦", "IBAN", self.iban))
+            rows.append(r("🏦", "Счёт", self.account_number))
+            rows.append(r("🔢", "Sort Code", self.sort_code))
+            rows.append(r("🏷", "IFSC", self.ifsc))
+            rows.append(r("📱", "Телефон", self.phone))
+            rows.append(r("🌍", "Страна", self.country))
+            rows.append(r("📄", "CPF", self.cpf))
+            rows.append(r("📄", "CVU/CBU", self.cvu_cbu))
+            rows.append(r("🧭", "Направление", self.separate_direction))
+            rows.append(r("📝", "Призначення", self.payment_note))
 
         # Method 1: IBAN UAH
-        elif self.method_type == 1:
-            details.append(f"🏦 <b>IBAN:</b> <code>{self.iban}</code>")
-            details.append(f"👤 <b>ФИО:</b> <code>{self.full_name}</code>")
-            details.append(f"📄 <b>ІПН:</b> <code>{self.inn}</code>")
+        elif m == 1:
+            rows.append(r("🏦", "IBAN", self.iban))
+            rows.append(r("👤", "ФИО", self.full_name))
+            rows.append(r("📄", "ІПН", self.inn))
+            rows.append(r("👤", "Получатель", self.recipient_name))
+            rows.append(r("📝", "Призначення", self.payment_note))
 
         # Method 2: SEPA
-        elif self.method_type == 2:
-            details.append(f"🇪🇺 <b>SEPA IBAN:</b> <code>{self.iban}</code>")
-            details.append(
-                f"👤 <b>Имя (ФОП/ТОВ):</b> <code>{self.recipient_name}</code>"
-            )
-            details.append(f"📝 <b>Назначение:</b> <code>{self.payment_note}</code>")
+        elif m == 2:
+            rows.append(r("🇪🇺", "SEPA IBAN", self.iban))
+            rows.append(r("👤", "Имя (ФОП/ТОВ)", self.recipient_name))
+            rows.append(r("📝", "Назначение", self.payment_note))
 
-        # Method 3: Email-кошелек
-        elif self.method_type == 3:
+        # Method 3: E-WALLET (Wise/PayPal/Skrill)
+        elif m == 3:
             service = (self.service_name or "Email").capitalize()
-            details.append(
-                f"📧 <b>{service} Email:</b> <code>{self.payout_email}</code>"
-            )
-            details.append(f"👤 <b>ФИО:</b> <code>{self.full_name}</code>")
+            rows.append(r("📧", f"{service} Email", self.payout_email))
+            rows.append(r("👤", "ФИО", self.full_name))
+            rows.append(r("👤", "Получатель", self.recipient_name))
+            rows.append(r("💳", "Карта", self.card_number))
+            rows.append(r("🏦", "IBAN", self.iban))
+            rows.append(r("🏦", "Счёт", self.account_number))
+            rows.append(r("🔢", "Sort Code", self.sort_code))
+            rows.append(r("📝", "Назначение", self.payment_note))
 
-        # Method 4: Revtag
-        elif self.method_type == 4:
-            details.append(f"📱 <b>Revtag:</b> <code>{self.revtag}</code>")
-            details.append(f"👤 <b>ФИО:</b> <code>{self.full_name}</code>")
-            if self.card_number:
-                details.append(f"💳 <b>Карта:</b> <code>{self.card_number}</code>")
+        # Method 4: REVTAG (Revolut)
+        elif m == 4:
+            rows.append(r("📱", "Revtag", self.revtag))
+            rows.append(r("👤", "ФИО", self.full_name))
+            rows.append(r("👤", "Получатель", self.recipient_name))
+            rows.append(r("💳", "Карта", self.card_number))
+            rows.append(r("🏦", "IBAN", self.iban))
+            rows.append(r("🏦", "Банк", self.bank_name))
+            rows.append(r("🏦", "Счёт", self.account_number))
+            rows.append(r("🔢", "Sort Code", self.sort_code))
+            rows.append(r("📝", "Назначение", self.payment_note))
 
-        # Method 5: Crypto
-        elif self.method_type == 5:
-            details.append(f"🔐 <b>Гаманець:</b> <code>{self.wallet_address}</code>")
+        # Method 5: CRYPTO
+        elif m == 5:
+            rows.append(r("🔐", "Гаманець", self.wallet_address))
 
         # Method 6: IBAN International
-        elif self.method_type == 6:
-            details.append(f"🌐 <b>IBAN (міжнар.):</b> <code>{self.iban}</code>")
-            details.append(f"👤 <b>ФИО:</b> <code>{self.full_name}</code>")
-            if self.bank_name:
-                details.append(f"🏦 <b>Банк:</b> <code>{self.bank_name}</code>")
+        elif m == 6:
+            rows.append(r("🌐", "IBAN (міжнар.)", self.iban))
+            rows.append(r("👤", "ФИО", self.full_name))
+            rows.append(r("👤", "Получатель", self.recipient_name))
+            rows.append(r("🏦", "Банк", self.bank_name))
+            rows.append(r("🏦", "Банк. счет", self.bank_account))
+            rows.append(r("💳", "Карта", self.card_number))
+            rows.append(r("🏦", "Счёт", self.account_number))
+            rows.append(r("🔢", "Sort Code", self.sort_code))
+            rows.append(r("🏷", "IFSC", self.ifsc))
+            rows.append(r("📄", "CVU/CBU", self.cvu_cbu))
+            rows.append(r("🧭", "Направление", self.separate_direction))
+            rows.append(r("📝", "Призначення", self.payment_note))
 
         # Method 7: CNY AliPay
-        elif self.method_type == 7:
-            details.append(f"🏦 <b>Банк. счет:</b> <code>{self.bank_account}</code>")
-            if self.payout_email:
-                details.append(f"📧 <b>Email:</b> <code>{self.payout_email}</code>")
-            if self.payment_note:
-                details.append(f"📝 <b>Призначення:</b> <code>{self.payment_note}</code>")
+        elif m == 7:
+            rows.append(r("🏦", "Банк. счет", self.bank_account))
+            rows.append(r("📧", "Email", self.payout_email))
+            rows.append(r("📝", "Призначення", self.payment_note))
 
         # Method 8: CNY WeChat
-        elif self.method_type == 8:
-            details.append(f"🏦 <b>Банк. счет:</b> <code>{self.bank_account}</code>")
-            if self.payout_email:
-                details.append(f"📧 <b>Email:</b> <code>{self.payout_email}</code>")
-            if self.payment_note:
-                details.append(f"📝 <b>Призначення:</b> <code>{self.payment_note}</code>")
+        elif m == 8:
+            rows.append(r("🏦", "Банк. счет", self.bank_account))
+            rows.append(r("📧", "Email", self.payout_email))
+            rows.append(r("📝", "Призначення", self.payment_note))
+
+        # Method 9: PHONE_WALLET (m10 AZN, Idram AMD)
+        elif m == 9:
+            rows.append(r("📱", "Телефон", self.phone))
+            rows.append(r("🆔", "Idram Account", self.idram_account))
+            rows.append(r("👤", "ФИО", self.full_name))
+            rows.append(r("👤", "Получатель", self.recipient_name))
+            rows.append(r("💳", "Карта", self.card_number))
+
+        # Method 10: UPI INR
+        elif m == 10:
+            rows.append(r("🆔", "UPI ID", self.upi_id))
+            rows.append(r("👤", "Получатель", self.recipient_name))
+
+        # Method 11: PAYTM INR
+        elif m == 11:
+            rows.append(r("📱", "Paytm Wallet", self.paytm_wallet))
+            rows.append(r("👤", "Получатель", self.recipient_name))
+
+        # Method 12: PIX BRL
+        elif m == 12:
+            rows.append(r("👤", "Получатель", self.recipient_name))
+            rows.append(r("🔑", "Pix Keys", self.pix_keys))
+            rows.append(r("📄", "CPF", self.cpf))
+
+        # Method 13: ATM QR BRL
+        elif m == 13:
+            rows.append(r("✈️", "Telegram", self.telegram))
+            rows.append(r("👤", "Получатель", self.recipient_name))
+            rows.append(r("🔑", "Pix Keys", self.pix_keys))
+            rows.append(r("📄", "CPF", self.cpf))
+
+        # Method 14: Mercado Pago ARS
+        elif m == 14:
+            rows.append(r("👤", "Получатель", self.recipient_name))
+            rows.append(r("🏦", "Банк", self.bank_name))
+            rows.append(r("📄", "CVU/CBU", self.cvu_cbu))
+
+        # Method 15: ELCART KGS
+        elif m == 15:
+            rows.append(r("💳", "Карта", self.card_number))
+            rows.append(r("👤", "Получатель", self.recipient_name))
+            rows.append(r("📱", "Телефон", self.phone))
+
+        # Method 16: INTERAC CAD
+        elif m == 16:
+            rows.append(r("👤", "Получатель", self.recipient_name))
+            rows.append(r("🏦", "Банк", self.bank_name))
+            rows.append(r("📝", "Призначення", self.payment_note))
 
         else:
-            # Обработка старых заявок, где method_type = None
-            if self.card_number:
-                details.append(f"💳 <b>Карта:</b> <code>{self.card_number}</code>")
-            if self.full_name:
-                details.append(f"👤 <b>ФИО:</b> <code>{self.full_name}</code>")
-            if not details:
-                details.append("❗️ <b>Реквизиты не распознаны (старый формат).</b>")
+            rows.append(r("💳", "Карта", self.card_number))
+            rows.append(r("👤", "ФИО", self.full_name))
+            if not any(rows):
+                rows.append("❗️ <b>Реквизиты не распознаны (старый формат).</b>")
 
-        return "\n".join(details)
+        # photo (QR code file_id) — render label if present, attached separately by handler
+        if self.photo:
+            rows.append(r("🖼", "QR-фото", self.photo))
+
+        return "\n".join([x for x in rows if x])
 
     async def get_telegram_formatted_application(self, conn: Connection) -> str:
         manager = None

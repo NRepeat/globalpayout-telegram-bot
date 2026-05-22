@@ -28,6 +28,9 @@ async def new_transaction(
         method_type, service_name, iban, inn,
         recipient_name, payment_note, payout_email, revtag,
         wallet_address, bank_name, photo, bank_account,
+        country, sort_code, account_number, phone, idram_account,
+        ifsc, upi_id, paytm_wallet, pix_keys, cpf, cvu_cbu,
+        separate_direction, telegram,
         usdt_amount, rates
     )
     VALUES (
@@ -37,34 +40,50 @@ async def new_transaction(
         %s, %s, %s, %s,
         %s, %s, %s, %s,
         %s, %s, %s, %s,
+        %s, %s, %s, %s, %s,
+        %s, %s, %s, %s, %s, %s,
+        %s, %s,
         %s, %s
     )
     """
 
     params = (
-        new_transaction_uuid,           # 1
-        transaction.external_order_id,  # 2
-        "created",                      # 3
-        transaction.currency,           # 4
-        transaction.currency_xml_code,  # 5
-        transaction.amount,             # 6
-        now_time_with_timezone,         # 7
-        transaction.card_number,        # 8
-        transaction.full_name,          # 9
-        transaction.method_type,        # 10
-        transaction.service_name,       # 11
-        transaction.iban,               # 12
-        transaction.inn,                # 13
-        transaction.recipient_name,     # 14
-        transaction.payment_note,       # 15
-        transaction.payout_email,       # 16
-        transaction.revtag,             # 17
-        transaction.wallet_address,     # 18
-        transaction.bank_name,          # 19
-        transaction.photo,              # 20
-        transaction.bank_account,       # 21
-        transaction.usdt_amount,        # 22
-        transaction.rates               # 23
+        new_transaction_uuid,
+        transaction.external_order_id,
+        "created",
+        transaction.currency,
+        transaction.currency_xml_code,
+        transaction.amount,
+        now_time_with_timezone,
+        transaction.card_number,
+        transaction.full_name,
+        transaction.method_type,
+        transaction.service_name,
+        transaction.iban,
+        transaction.inn,
+        transaction.recipient_name,
+        transaction.payment_note,
+        transaction.payout_email,
+        transaction.revtag,
+        transaction.wallet_address,
+        transaction.bank_name,
+        transaction.photo,
+        transaction.bank_account,
+        transaction.country,
+        transaction.sort_code,
+        transaction.account_number,
+        transaction.phone,
+        transaction.idram_account,
+        transaction.ifsc,
+        transaction.upi_id,
+        transaction.paytm_wallet,
+        transaction.pix_keys,
+        transaction.cpf,
+        transaction.cvu_cbu,
+        transaction.separate_direction,
+        transaction.telegram,
+        transaction.usdt_amount,
+        transaction.rates,
     )
 
     async with conn.cursor() as cur:
@@ -84,6 +103,9 @@ async def get_transaction_by_uuid(
         method_type, service_name, iban, inn,
         recipient_name, payment_note, payout_email, revtag,
         wallet_address, bank_name, photo, bank_account,
+        country, sort_code, account_number, phone, idram_account,
+        ifsc, upi_id, paytm_wallet, pix_keys, cpf, cvu_cbu,
+        separate_direction, telegram,
         usdt_amount, rates
     FROM exchange_transaction
     JOIN data_status ON exchange_transaction.status_id = data_status.record_id

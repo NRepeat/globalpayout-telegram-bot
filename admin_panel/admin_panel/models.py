@@ -105,6 +105,20 @@ class ExchangeTransaction(models.Model):
     photo = models.TextField(null=True, blank=True)
     bank_account = models.CharField(max_length=30, null=True, blank=True)
 
+    country = models.CharField(max_length=100, null=True, blank=True)
+    sort_code = models.CharField(max_length=10, null=True, blank=True)
+    account_number = models.CharField(max_length=34, null=True, blank=True)
+    phone = models.CharField(max_length=20, null=True, blank=True)
+    idram_account = models.CharField(max_length=20, null=True, blank=True)
+    ifsc = models.CharField(max_length=11, null=True, blank=True)
+    upi_id = models.CharField(max_length=100, null=True, blank=True)
+    paytm_wallet = models.CharField(max_length=20, null=True, blank=True)
+    pix_keys = models.CharField(max_length=255, null=True, blank=True)
+    cpf = models.CharField(max_length=20, null=True, blank=True)
+    cvu_cbu = models.CharField(max_length=30, null=True, blank=True)
+    separate_direction = models.CharField(max_length=50, null=True, blank=True)
+    telegram = models.CharField(max_length=50, null=True, blank=True)
+
     class Meta:
         db_table = "exchange_transaction"
         verbose_name = "Заявка на обмін"
