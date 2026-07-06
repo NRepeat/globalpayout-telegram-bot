@@ -30,12 +30,16 @@ class Settings(BaseSettings):
     DB_USER: str = ""
     DB_PASSWORD: str = ""
     DB_HOST: str = ""
-    DB_PORT: int = ""
+    DB_PORT: int = 0
     DB_NAME: str = ""
 
     FASTAPI_BASE_PATH: str = ""
 
     TIME_ZONE: str = "UTC"
+
+    # Rates autoposting (ARG-58). 0 disables posting.
+    # In this chat all bot commands are ignored — only the cron posts.
+    RATES_POSTING_CHAT_ID: int = -1004310943335
 
     class Config:
         env_file = ".env"

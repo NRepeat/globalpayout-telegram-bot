@@ -133,3 +133,6 @@ dmypy.json
 
 
 curl_command.sh
+
+# rates autoposting history (runtime state)
+bot_app/rates_history.json

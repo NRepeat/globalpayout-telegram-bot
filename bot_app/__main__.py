@@ -1,4 +1,5 @@
-from contextlib import asynccontextmanager
+import asyncio
+from contextlib import asynccontextmanager, suppress
 
 import uvicorn
 from aiogram.types import BotCommand
@@ -8,6 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from bot_app.config import __version__, settings
 from bot_app.data_queries import db
 from bot_app.misc import aiogram_bot_instance, log_out_from_telegram_api
+from bot_app.rates_posting import rates_posting_scheduler
 from bot_app.routes.route_rates import rates_router
 from bot_app.routes.route_transaction import transaction_router
 from bot_app.routes.system.bot_settings import root_router
@@ -44,7 +46,11 @@ async def lifespan(app: FastAPI):
     await aiogram_bot_instance.set_my_commands(commands_list)
 
     await db.create_pool()
+    rates_posting_task = asyncio.create_task(rates_posting_scheduler())
     yield
+    rates_posting_task.cancel()
+    with suppress(asyncio.CancelledError):
+        await rates_posting_task
     await db.close()
     await aiogram_bot_instance.session.close()
 

@@ -1,4 +1,4 @@
-from aiogram import Bot, Dispatcher, Router
+from aiogram import Bot, Dispatcher, F, Router
 from aiogram.client.default import DefaultBotProperties
 from aiogram.client.session.aiohttp import AiohttpSession
 from aiogram.client.telegram import TelegramAPIServer
@@ -26,6 +26,8 @@ async def log_out_from_telegram_api():
 
 
 aiogram_router = Router()
+# Rates autoposting chat: all bot commands are ignored there, only the cron posts (ARG-58)
+aiogram_router.message.filter(F.chat.id != settings.RATES_POSTING_CHAT_ID)
 
 if settings.USE_LOCAL_BOT_API:
     session = AiohttpSession(
