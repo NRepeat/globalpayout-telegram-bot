@@ -199,8 +199,8 @@ async def fetch_rates() -> dict:
 def get_rate(rates: dict, from_code: str, to_code: str):
     """Курс пары для отображения или None, если направления нет/оно выключено.
 
-    Экспорт (и посты Владислава) квотируют стороной >= 1: 44.11 UAH за 1 USDT,
-    но 1.15 USDT за 1 EUR — воспроизводим то же самое."""
+    Квотируем стороной >= 1, как публичный экспорт: 44.11 UAH за 1 USDT,
+    но 1.15 USDT за 1 EUR."""
     ratio = rates.get((from_code, to_code))
     if ratio is None or ratio <= 0:
         return None
