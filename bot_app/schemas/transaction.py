@@ -2,11 +2,20 @@ import datetime
 from typing import Optional
 from uuid import UUID
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 from bot_app.data_queries import Connection
 from bot_app.data_queries.user import get_user_by_id
 from bot_app.schemas.user import SavedUser
+
+METHOD_CARD = 0
+METHOD_IBAN_UAH = 1
+
+
+def is_blank(value) -> bool:
+    # "undefined"/"null" прилетают строками, когда плагин обменника читает поле,
+    # которого нет в форме направления.
+    return value in (None, "", "undefined", "null")
 
 
 class NewTransaction(BaseModel):
@@ -73,6 +82,30 @@ class NewTransaction(BaseModel):
         },
     }
 
+    @model_validator(mode="after")
+    def method_follows_details(self):
+        """method_type у плагина обменника берётся из статичной карты xml -> метод,
+        а поля формы задаёт пресет из бота. Когда направление переключили, а карту
+        не поправили, заявка приезжает как IBAN с пустым IBAN и наоборот. Верим
+        тому, что реально пришло в реквизитах, иначе оператор получает пустоту.
+        """
+        card = not is_blank(self.card_number)
+        iban = not is_blank(self.iban)
+        if card == iban:  # оба пришли или обоих нет — гадать не о чем
+            return self
+
+        if self.method_type == METHOD_IBAN_UAH and card:
+            self.method_type = METHOD_CARD
+            self.service_name = f"card_{self.currency.lower()}"
+        elif (
+            self.method_type == METHOD_CARD
+            and iban
+            and self.currency.upper() == "UAH"
+        ):
+            self.method_type = METHOD_IBAN_UAH
+            self.service_name = "iban_uah"
+        return self
+
 
 class TransactionResponse(BaseModel):
     uuid: UUID = Field(..., description="Message UUID")
@@ -134,7 +167,7 @@ class TransactionResponse(BaseModel):
             return "❓"
 
     def _row(self, emoji: str, label: str, value) -> str | None:
-        if value in (None, ""):
+        if is_blank(value):
             return None
         return f"{emoji} <b>{label}:</b> <code>{value}</code>"
 
@@ -142,6 +175,11 @@ class TransactionResponse(BaseModel):
         r = self._row
         m = self.method_type
         rows: list[str | None] = []
+
+        # Заявки, записанные до фикса method_follows_details, лежат в базе с чужим
+        # методом — рисуем по тому, что реально есть в реквизитах.
+        if m == METHOD_IBAN_UAH and is_blank(self.iban) and not is_blank(self.card_number):
+            m = METHOD_CARD
 
         # Method 0: CARD (multi-currency variants)
         if m == 0:
