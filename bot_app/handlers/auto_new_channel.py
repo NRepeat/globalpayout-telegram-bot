@@ -35,9 +35,9 @@ async def on_bot_promoted(update: ChatMemberUpdated, db_connection: Connection):
 
 @aiogram_router.message(ChatMigration())
 async def get_migration_from_chat_id(message: Message, db_connection: Connection):
-    tg_chat_data: SavedChat = await get_chat_by_tg_id(
-        db_connection, message.migrate_from_chat_id
-    )
+    # The "migrate_to" service message arrives in the OLD chat, so the saved row
+    # is found by message.chat.id — migrate_from_chat_id is None here.
+    tg_chat_data: SavedChat = await get_chat_by_tg_id(db_connection, message.chat.id)
     if tg_chat_data is None:
         return
 

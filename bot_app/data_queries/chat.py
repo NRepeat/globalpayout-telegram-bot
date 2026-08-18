@@ -36,6 +36,28 @@ async def update_chat_tg_id(conn: Connection, record_id: int, new_channel_tg_id:
         await conn.commit()
 
 
+async def set_transaction_target(conn: Connection, aiogram_chat: Chat) -> None:
+    """Make this chat the only target for new transactions."""
+    upsert_query = """
+    INSERT INTO tg_chat (chat_tg_id, chat_title, chat_user_name, transaction_target)
+    VALUES (%s, %s, %s, 1)
+    ON DUPLICATE KEY UPDATE
+        chat_title = VALUES(chat_title),
+        chat_user_name = VALUES(chat_user_name),
+        transaction_target = 1
+    """
+    params = (
+        aiogram_chat.id,
+        aiogram_chat.title,
+        f"@{aiogram_chat.username}" if aiogram_chat.username else None,
+    )
+    async with conn.cursor() as cur:
+        cur: Cursor
+        await cur.execute("UPDATE tg_chat SET transaction_target = 0")
+        await cur.execute(upsert_query, params)
+        await conn.commit()
+
+
 async def get_chat_by_tg_id(conn: Connection, chat_tg_id: int) -> Optional[SavedChat]:
     query = "SELECT record_id, chat_tg_id, chat_title, chat_user_name, transaction_target FROM tg_chat WHERE chat_tg_id = %s"
     async with conn.cursor() as cur:
