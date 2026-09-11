@@ -9,6 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from bot_app.config import __version__, settings
 from bot_app.data_queries import db
 from bot_app.misc import aiogram_bot_instance, log_out_from_telegram_api
+from bot_app.daily_summary import daily_summary_scheduler
 from bot_app.rates_posting import rates_posting_scheduler
 from bot_app.routes.route_rates import rates_router
 from bot_app.routes.route_transaction import transaction_router
@@ -81,6 +82,8 @@ async def lifespan(app: FastAPI):
 
     await db.create_pool()
     rates_posting_task = asyncio.create_task(rates_posting_scheduler())
+    # свой раздел суточной сводки — уходит в exchange-check в 23:50
+    summary_task = asyncio.create_task(daily_summary_scheduler())
     yield
     if polling_task is not None:
         polling_task.cancel()
@@ -89,6 +92,9 @@ async def lifespan(app: FastAPI):
     rates_posting_task.cancel()
     with suppress(asyncio.CancelledError):
         await rates_posting_task
+    summary_task.cancel()
+    with suppress(asyncio.CancelledError):
+        await summary_task
     await db.close()
     await aiogram_bot_instance.session.close()
 
