@@ -6,4 +6,5 @@ from . import (
     stats,
     route_rates_control,
     report,
+    work_group,
 )

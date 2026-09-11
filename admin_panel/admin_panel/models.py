@@ -9,6 +9,12 @@ class User(models.Model):
         default=False, verbose_name="Старший оператор"
     )
     bot_admin = models.BooleanField(default=False, verbose_name="Адміністратор бота")
+    # Особиста робоча група оператора: взята заявка переїжджає туди, щоб робота
+    # не йшла у спільному чаті на очах у всіх. Порожньо — працюємо як раніше,
+    # у спільному чаті.
+    work_group_chat_id = models.BigIntegerField(
+        blank=True, null=True, verbose_name="Особиста робоча група (chat_id)"
+    )
 
     class Meta:
         db_table = "data_tg_user"

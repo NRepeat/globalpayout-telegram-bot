@@ -9,6 +9,8 @@ class SavedUser(BaseModel):
     user_name: Optional[str] = Field(None, description="TG user name")
     senior_operator: bool
     bot_admin: bool
+    # Особиста робоча група оператора; None — працюємо у спільному чаті.
+    work_group_chat_id: Optional[int] = None
 
     def linked_name_and_username(self) -> str:
         if self.user_name is not None and len(self.user_name) > 0:

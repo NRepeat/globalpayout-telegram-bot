@@ -30,7 +30,7 @@ async def save_user(conn: Connection, aiogram_user: User) -> SavedUser:
 
 
 async def get_user_by_id(conn: Connection, user_id: str) -> Optional[SavedUser]:
-    query = "SELECT user_id, name, user_name, senior_operator, bot_admin FROM data_tg_user WHERE user_id = %s"
+    query = "SELECT user_id, name, user_name, senior_operator, bot_admin, work_group_chat_id FROM data_tg_user WHERE user_id = %s"
     async with conn.cursor() as cur:
         cur: Cursor
         await cur.execute(query, user_id)
@@ -38,3 +38,12 @@ async def get_user_by_id(conn: Connection, user_id: str) -> Optional[SavedUser]:
     if not saved_user:
         return None
     return SavedUser(**saved_user)
+
+
+async def set_work_group(conn: Connection, user_id: int, chat_id: int) -> None:
+    """Особиста робоча група оператора: взята ним заявка переїжджає туди."""
+    query = "UPDATE data_tg_user SET work_group_chat_id = %s WHERE user_id = %s"
+    async with conn.cursor() as cur:
+        cur: Cursor
+        await cur.execute(query, (chat_id, user_id))
+        await conn.commit()

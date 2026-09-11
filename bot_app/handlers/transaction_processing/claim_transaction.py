@@ -1,3 +1,6 @@
+import logging
+from contextlib import suppress
+
 from aiogram import F
 from aiogram.exceptions import TelegramBadRequest
 from aiogram.types import CallbackQuery, FSInputFile
@@ -13,6 +16,8 @@ from bot_app.data_queries.user import get_user_by_id, save_user
 from bot_app.markup.base import TransactionOperations, finish_transaction_processing
 from bot_app.misc import aiogram_bot_instance, aiogram_router
 from bot_app.schemas.transaction import TransactionResponse
+
+logger = logging.getLogger(__name__)
 
 
 @aiogram_router.callback_query(TransactionOperations.filter(F.action == "claim"))
@@ -41,6 +46,14 @@ async def add_new_channel(
     transaction_text = await transaction.get_telegram_formatted_application(
         db_connection
     )
+
+    # Особиста група оператора: заявка переїжджає туди, у спільному чаті
+    # залишається помітка «взята». Якщо переїзд не вдався — працюємо на місці,
+    # заявку губити не можна.
+    if await move_to_work_group(call, db_connection, callback_data, transaction_text):
+        await call.answer()
+        return
+
     try:
         # карточка — фото, текст живёт в подписи
         await call.message.edit_caption(
@@ -78,3 +91,50 @@ async def add_new_channel(
             raise
     finally:
         await call.answer()
+
+
+async def move_to_work_group(
+    call: CallbackQuery,
+    db_connection: Connection,
+    callback_data: TransactionOperations,
+    transaction_text: str,
+) -> bool:
+    """Перенести взяту заявку в особисту групу оператора.
+
+    True — заявка переїхала, далі робота йде там. False — групи немає або
+    надіслати не вдалося: тоді працюємо у спільному чаті, як раніше. Втратити
+    заявку через ненастроєну чи недоступну групу не можна.
+    """
+    user = await get_user_by_id(db_connection, call.from_user.id)
+    work_group = user.work_group_chat_id if user else None
+    if not work_group or work_group == call.message.chat.id:
+        return False
+
+    # Фото беремо з картки у спільному чаті — у операторській групі має бути
+    # та сама квитанція/заглушка, інакше editMessageMedia на фіналі впаде.
+    photo = call.message.photo[-1].file_id if call.message.photo else None
+    try:
+        await aiogram_bot_instance.send_photo(
+            work_group,
+            photo=photo or FSInputFile("bot_app/assets/placeholder.png"),
+            caption=transaction_text,
+            reply_markup=finish_transaction_processing(callback_data.transaction_uuid),
+        )
+    except TelegramBadRequest as e:
+        # найчастіше — бота не додали в групу; кажемо оператору прямо, інакше
+        # виглядає як «кнопка не працює»
+        logger.warning("work group %s unavailable: %s", work_group, e.message)
+        await call.answer(
+            "Не вдалося надіслати заявку у вашу робочу групу — працюємо тут. "
+            "Перевірте, що бот доданий у групу.",
+            show_alert=True,
+        )
+        return False
+
+    # У спільному чаті лишається слід: заявка взята, кнопок більше немає
+    with suppress(TelegramBadRequest):
+        await call.message.edit_caption(
+            caption=f"{transaction_text}\n\n🔒 Взята — робота у групі оператора",
+            reply_markup=None,
+        )
+    return True
