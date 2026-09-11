@@ -46,8 +46,22 @@ ASK_RECEIPT = "📎 Отправьте квитанцию выплаты (фот
 ASK_ACCOUNT = "🏦 Где закрыта заявка?"
 ASK_PARTNER = "🤝 Имя партнёра"
 ASK_RATE = "📊 Курс закрытия"
-ASK_ORDER = "🧾 ID P2P-ордера Binance"
-CHECKING = "⏳ Сверяю с Binance…"
+# Площадки с автосверкой: там спрашиваем ID ордера и берём курс с комиссией из
+# него. Остальным биржам P2P-API нам не дают — они идут ручным курсом бухгалтера.
+AUTO_CHECKED = ("binance", "bybit")
+
+
+def display_account(account: str) -> str:
+    """`binance` → `Binance`: то же имя, что на кнопке."""
+    return account.capitalize()
+
+
+def ask_order(account: str) -> str:
+    return f"🧾 ID P2P-ордера {display_account(account)}"
+
+
+def checking(account: str) -> str:
+    return f"⏳ Сверяю с {display_account(account)}…"
 UNAVAILABLE = "⚠️ Сервис сверки недоступен, попробуйте ещё раз или «курс N»."
 # Ручной курс — точка доверия: цифру никто не сверяет, поэтому право на неё
 # только у бухгалтеров (BOOKKEEPER_TG_IDS). Закрытие по ID ордера — всем.
@@ -236,13 +250,17 @@ async def choose_close_account(
         await _prompt(
             state, call.message.chat.id, ASK_PARTNER, cancel_state_entering_markup()
         )
-    elif action == "binance":
-        # у Binance курс не спрашиваем — сверяем по ID ордера через сервис
+    elif action in AUTO_CHECKED:
+        # где есть автосверка — курс не спрашиваем, берём из ордера по ID
+        await state.update_data(close_account=action)
         await state.set_state(CloseTransaction.order_id)
         await _prompt(
-            state, call.message.chat.id, ASK_ORDER, cancel_state_entering_markup()
+            state,
+            call.message.chat.id,
+            ask_order(action),
+            cancel_state_entering_markup(),
         )
-    else:  # okx | htx | bybit | mexc
+    else:  # okx | htx | mexc
         await state.update_data(close_account=action)
         await state.set_state(CloseTransaction.rate)
         await _prompt(
@@ -293,12 +311,15 @@ async def close_order_received(
     message: Message, state: FSMContext, db_connection: Connection
 ):
     await _trash(state, message.message_id)
+    data = await state.get_data()
+    account = data.get("close_account", "binance")
     parsed = parse_close_order_input(message.text)
     if parsed is None:
         await _prompt(
             state,
             message.chat.id,
-            f"ID ордера — число из ордера Binance.\n\n{ASK_ORDER}",
+            f"ID ордера — число из ордера {display_account(account)}."
+            f"\n\n{ask_order(account)}",
             cancel_state_entering_markup(),
         )
         return
@@ -311,18 +332,17 @@ async def close_order_received(
             await _prompt(
                 state,
                 message.chat.id,
-                f"{NOT_BOOKKEEPER}\n\n{ASK_ORDER}",
+                f"{NOT_BOOKKEEPER}\n\n{ask_order(account)}",
                 cancel_state_entering_markup(),
             )
             return
         # ручной обход: сервис недоступен или ордер не с нашего аккаунта
-        fee = await get_close_fee(db_connection, "binance")
+        fee = await get_close_fee(db_connection, account)
         await _finish_close(
-            message.chat.id, db_connection, state, "binance", value, fee, None
+            message.chat.id, db_connection, state, account, value, fee, None
         )
         return
 
-    data = await state.get_data()
     transaction = await get_transaction_by_uuid(db_connection, data["transaction_uuid"])
     if transaction is None:
         await state.clear()
@@ -330,24 +350,29 @@ async def close_order_received(
         return
 
     # сверка занимает секунды — показываем, что не зависли
-    await _prompt(state, message.chat.id, CHECKING, None)
-    verdict = await _verify_order(transaction, value)
+    await _prompt(state, message.chat.id, checking(account), None)
+    # сверяем ключами того, кто закрывает: ордер лежит в истории его биржевого
+    # аккаунта, чужим ключом он не найдётся
+    verdict = await _verify_order(transaction, value, account, message.from_user.id)
     if isinstance(verdict, str):  # готовый текст отказа
         await _prompt(
             state,
             message.chat.id,
-            f"{verdict}\n\n{ASK_ORDER}",
+            f"{verdict}\n\n{ask_order(account)}",
             cancel_state_entering_markup(),
         )
         return
     rate, fee = verdict
     await _finish_close(
-        message.chat.id, db_connection, state, "binance", rate, fee, value
+        message.chat.id, db_connection, state, account, rate, fee, value
     )
 
 
 async def _verify_order(
-    transaction: TransactionResponse, order_id: str
+    transaction: TransactionResponse,
+    order_id: str,
+    exchange: str,
+    operator_id: int,
 ) -> tuple[str, str] | str:
     """Сверить P2P-ордер с заявкой через exchange-check: он ходит на биржу,
     проверяет статус/актив/сумму и атомарно резервирует ордер за заявкой во
@@ -357,10 +382,12 @@ async def _verify_order(
     body = {
         "workspace": "globalpayout",
         "request_id": str(transaction.uuid),
-        "exchange": "binance",
+        "exchange": exchange,
         "order_id": order_id,
         "expected_amount": str(transaction.usdt_amount),
         "expected_asset": "USDT",
+        # ключи берутся по закрывающему: у каждого сотрудника свой аккаунт
+        "operator_id": operator_id,
     }
     try:
         async with aiohttp.ClientSession() as session:
@@ -410,7 +437,7 @@ async def _finish_close(
         await _prompt(
             state,
             chat_id,
-            f"❌ Ордер уже использован другой заявкой.\n\n{ASK_ORDER}",
+            f"❌ Ордер уже использован другой заявкой.\n\n{ask_order(account)}",
             cancel_state_entering_markup(),
         )
         return
