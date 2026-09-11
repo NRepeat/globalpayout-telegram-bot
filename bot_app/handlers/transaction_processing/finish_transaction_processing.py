@@ -21,6 +21,7 @@ from bot_app.data_queries.chat import get_transaction_target_chat
 from bot_app.data_queries.transaction import (
     close_transaction,
     get_close_fee,
+    get_posted_message,
     get_transaction_by_uuid,
     update_posted_information,
     update_transaction_status,
@@ -107,6 +108,34 @@ async def _refresh_card(
             raise
 
 
+async def _refresh_common_card(
+    db_connection: Connection,
+    worked_chat_id: int,
+    transaction: TransactionResponse,
+):
+    """Обновить карточку-заглушку в общем чате.
+
+    Когда заявка уезжает в рабочую группу оператора, в общем чате остаётся
+    карточка с пометкой «взята». Её правят один раз — при взятии, поэтому
+    после закрытия она висела со статусом `in_progress`, и по общему чату
+    было не понять, что заявка уже закрыта.
+
+    Строку закрытия (площадка, курс, комиссия, ордер) сюда не несём: она
+    касается только того, кто закрывал, и живёт в его чате.
+    """
+    posted = await get_posted_message(db_connection, str(transaction.uuid))
+    if not posted:
+        return
+    chat_id, message_id = posted
+    if chat_id == worked_chat_id:
+        return  # работали прямо в общем чате — карточка уже обновлена
+    text = await transaction.get_telegram_formatted_application(db_connection)
+    with suppress(TelegramBadRequest):
+        await aiogram_bot_instance.edit_message_caption(
+            chat_id=chat_id, message_id=message_id, caption=text, reply_markup=None
+        )
+
+
 async def _prompt(state: FSMContext, chat_id: int, text: str, markup) -> None:
     """Одно живое сообщение-подсказка на весь визард: старое удаляем,
     новое запоминаем — переписка в чате не растёт."""
@@ -168,6 +197,7 @@ async def mark_transaction_as_failed(
     await _refresh_card(
         db_connection, call.message.chat.id, call.message.message_id, updated
     )
+    await _refresh_common_card(db_connection, call.message.chat.id, updated)
     await call.answer()
 
 
@@ -493,6 +523,9 @@ async def _finish_close(
                 media=media_cls(media=file_id, caption=text, parse_mode="HTML"),
                 reply_markup=None,
             )
+            await _refresh_common_card(
+                db_connection, data["card_chat_id"], transaction
+            )
             return
         except TelegramBadRequest as e:
             log.warning("квитанция не встала в карточку: %s", e.message)
@@ -500,3 +533,4 @@ async def _finish_close(
     await _refresh_card(
         db_connection, data["card_chat_id"], data["card_message_id"], transaction, extra
     )
+    await _refresh_common_card(db_connection, data["card_chat_id"], transaction)
