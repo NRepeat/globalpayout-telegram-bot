@@ -1,5 +1,6 @@
 import datetime
 import uuid
+from decimal import Decimal
 from uuid import UUID
 
 import pytz
@@ -222,3 +223,42 @@ async def get_stats_report(conn: Connection):
         await cur.execute(query)
         stats = await cur.fetchall()
     return stats
+
+
+async def get_close_fee(conn: Connection, account: str) -> Decimal:
+    """Комиссия площадки из справочника close_fees. Отсутствие строки — 0,
+    не блокирует закрытие (partner:<имя> обычно без строки)."""
+    query = "SELECT fee FROM close_fees WHERE account = %s"
+    async with conn.cursor() as cur:
+        cur: Cursor
+        await cur.execute(query, (account,))
+        row = await cur.fetchone()
+    return row["fee"] if row else Decimal(0)
+
+
+async def close_transaction(
+    conn: Connection,
+    transaction_uuid: str,
+    account: str,
+    rate,
+    fee,
+    order_id: str | None,
+):
+    """Финал закрытия: все поля close_* и статус completed одним UPDATE —
+    отмена на любом шаге до этого не оставляет половины данных.
+    rate/fee — Decimal или строка из сервиса сверки, в БД это DECIMAL.
+    Дубль close_order_id (уникальный индекс) поднимет IntegrityError.
+    Закрываем только из in_progress: если заявку успели пометить «Невдалий»,
+    дожатый визард не должен воскресить её в completed. False — не закрылась."""
+    query = """
+    UPDATE exchange_transaction SET
+        close_account = %s, close_rate = %s, close_fee = %s, close_order_id = %s,
+        status_id = (SELECT record_id FROM data_status WHERE status_code = 'completed')
+    WHERE uuid = %s
+      AND status_id = (SELECT record_id FROM data_status WHERE status_code = 'in_progress')
+    """
+    async with conn.cursor() as cur:
+        cur: Cursor
+        await cur.execute(query, (account, str(rate), str(fee), order_id, transaction_uuid))
+        await conn.commit()
+        return cur.rowcount > 0

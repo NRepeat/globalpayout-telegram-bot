@@ -119,6 +119,21 @@ class ExchangeTransaction(models.Model):
     separate_direction = models.CharField(max_length=50, null=True, blank=True)
     telegram = models.CharField(max_length=50, null=True, blank=True)
 
+    # Закрытие заявки (единый флоу всех ботов): где реально закрыли, по какому
+    # курсу и с какой комиссией. Бот пишет их одним UPDATE вместе со статусом
+    # completed — у закрытых заявок либо всё, либо ничего.
+    close_account = models.CharField(  # binance|okx|htx|bybit|mexc|partner:<имя>
+        max_length=64, null=True, blank=True
+    )
+    close_rate = models.DecimalField(
+        max_digits=32, decimal_places=16, null=True, blank=True
+    )
+    close_fee = models.DecimalField(
+        max_digits=30, decimal_places=8, null=True, blank=True
+    )
+    # уникален: один P2P-ордер = одна заявка (NULL — закрыто вручную/партнёром)
+    close_order_id = models.CharField(max_length=64, unique=True, null=True, blank=True)
+
     class Meta:
         db_table = "exchange_transaction"
         verbose_name = "Заявка на обмін"
@@ -221,3 +236,19 @@ class ExchangeTransaction(models.Model):
         {details_block}
         """
         return "\n".join([line.strip() for line in text.splitlines()])
+
+
+class CloseFee(models.Model):
+    """Справочник комиссий площадок для ручного закрытия (Binance берёт
+    комиссию из ордера). Нет строки — бот считает комиссию нулевой."""
+
+    account = models.CharField(max_length=64, primary_key=True)
+    fee = models.DecimalField(max_digits=30, decimal_places=8, default=0)
+
+    class Meta:
+        db_table = "close_fees"
+        verbose_name = "Комісія майданчика"
+        verbose_name_plural = "Комісії майданчиків"
+
+    def __str__(self):
+        return f"{self.account}: {self.fee}"

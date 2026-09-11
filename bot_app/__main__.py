@@ -17,19 +17,53 @@ from bot_app.routes.system.bot_settings import root_router
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    bot_webhook_url = f"{settings.WEBHOOK_HOST}/bot-webhook/"
-    current_webhook_info = await aiogram_bot_instance.get_webhook_info()
-    if current_webhook_info.url != bot_webhook_url:
-        await aiogram_bot_instance.set_webhook(
-            bot_webhook_url,
-            secret_token=settings.TELEGRAM_WEBHOOK_SECRET,
-            allowed_updates=[
-                "message",
-                "callback_query",
-                "chat_member",
-                "my_chat_member",
-            ],
+    # Пустой WEBHOOK_HOST — локальная разработка: без HTTPS-туннеля вебхук не
+    # зарегистрировать, поэтому переходим на long-polling тем же диспетчером.
+    # Прод с заданным WEBHOOK_HOST работает как раньше.
+    polling_task = None
+    if not settings.WEBHOOK_HOST:
+        from aiogram import BaseMiddleware
+
+        from bot_app.misc import multibot_dispatcher
+
+        # В вебхуке db_connection хендлерам подкладывает FastAPI-роут через
+        # feed_raw_update; у поллинга роута нет — даём соединение на каждый
+        # апдейт middleware'ом, из того же пула.
+        class DbConnectionMiddleware(BaseMiddleware):
+            async def __call__(self, handler, event, data):
+                async for conn in db.get_connection():
+                    data["db_connection"] = conn
+                    return await handler(event, data)
+
+        multibot_dispatcher.update.outer_middleware(DbConnectionMiddleware())
+        # пул — до первого апдейта, иначе гонка на старте
+        await db.create_pool()
+        await aiogram_bot_instance.delete_webhook(drop_pending_updates=False)
+        polling_task = asyncio.create_task(
+            multibot_dispatcher.start_polling(
+                aiogram_bot_instance,
+                allowed_updates=[
+                    "message",
+                    "callback_query",
+                    "chat_member",
+                    "my_chat_member",
+                ],
+            )
         )
+    else:
+        bot_webhook_url = f"{settings.WEBHOOK_HOST}/bot-webhook/"
+        current_webhook_info = await aiogram_bot_instance.get_webhook_info()
+        if current_webhook_info.url != bot_webhook_url:
+            await aiogram_bot_instance.set_webhook(
+                bot_webhook_url,
+                secret_token=settings.TELEGRAM_WEBHOOK_SECRET,
+                allowed_updates=[
+                    "message",
+                    "callback_query",
+                    "chat_member",
+                    "my_chat_member",
+                ],
+            )
     if settings.USE_LOCAL_BOT_API:
         await log_out_from_telegram_api()
 
@@ -48,6 +82,10 @@ async def lifespan(app: FastAPI):
     await db.create_pool()
     rates_posting_task = asyncio.create_task(rates_posting_scheduler())
     yield
+    if polling_task is not None:
+        polling_task.cancel()
+        with suppress(asyncio.CancelledError):
+            await polling_task
     rates_posting_task.cancel()
     with suppress(asyncio.CancelledError):
         await rates_posting_task

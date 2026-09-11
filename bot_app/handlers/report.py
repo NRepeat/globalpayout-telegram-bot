@@ -81,29 +81,74 @@ async def generate_report(
     WHERE et.created_at BETWEEN %s AND %s
     ORDER BY et.created_at DESC
     """
+    # Закрыто по площадкам: во что закрывали completed-заявки за период
+    # (закрытие пишет close_account всегда, старые заявки без него не считаем)
+    closed_by_account_query = """
+    SELECT
+        et.close_account as "Майданчик",
+        COUNT(*) as "Кількість",
+        COALESCE(SUM(et.usdt_amount), 0) as "Обсяг USDT",
+        COALESCE(SUM(et.close_fee), 0) as "Комісії"
+    FROM exchange_transaction et
+    JOIN data_status ds ON et.status_id = ds.record_id
+    WHERE ds.status_code = 'completed' AND et.close_account IS NOT NULL
+        AND et.created_at BETWEEN %s AND %s
+    GROUP BY et.close_account
+    ORDER BY 3 DESC
+    """
+
+    # Незакрытые — все pending, не только за период отчёта
+    unclosed_query = """
+    SELECT
+        et.uuid as "ID транзакції",
+        et.external_order_id as "Зовнішній ID",
+        ds.status_code as "Статус",
+        et.amount as "Сума",
+        et.currency as "Валюта",
+        et.usdt_amount as "Сума в USDT",
+        tg_user.user_name as "Оператор",
+        et.created_at as "Дата створення"
+    FROM exchange_transaction et
+    JOIN data_status ds ON et.status_id = ds.record_id
+    LEFT JOIN data_tg_user tg_user ON et.manager_id = tg_user.user_id
+    WHERE ds.status_code IN ('created', 'in_progress')
+    ORDER BY et.created_at
+    """
+
     async with db_connection.cursor() as cur:
         cur: Cursor
         await cur.execute(query, (start_date, end_date))
         data = await cur.fetchall()
+        await cur.execute(closed_by_account_query, (start_date, end_date))
+        closed_by_account = await cur.fetchall()
+        await cur.execute(unclosed_query)
+        unclosed = await cur.fetchall()
 
-    if not data:
+    if not (data or closed_by_account or unclosed):
         await callback.message.answer("Немає даних за вказаний період")
         return
-
-    # Create DataFrame
-    df = pd.DataFrame(data)
 
     # Create Excel file in memory
     output = io.BytesIO()
     with pd.ExcelWriter(output, engine="xlsxwriter") as writer:
-        df.to_excel(writer, sheet_name="Звіт", index=False)
+        # (данные, имя листа) — пустые листы не пишем
+        sheets = [
+            (data, "Звіт"),
+            (closed_by_account, "Закрито по майданчиках"),
+            (unclosed, "Незакриті"),
+        ]
+        for rows, sheet_name in sheets:
+            if not rows:
+                continue
+            df = pd.DataFrame(rows)
+            df.to_excel(writer, sheet_name=sheet_name, index=False)
 
-        # Auto-adjust columns width
-        worksheet = writer.sheets["Звіт"]
-        for idx, col in enumerate(df.columns):
-            series = df[col]
-            max_len = max(series.astype(str).map(len).max(), len(str(col))) + 1
-            worksheet.set_column(idx, idx, max_len)
+            # Auto-adjust columns width
+            worksheet = writer.sheets[sheet_name]
+            for idx, col in enumerate(df.columns):
+                series = df[col]
+                max_len = max(series.astype(str).map(len).max(), len(str(col))) + 1
+                worksheet.set_column(idx, idx, max_len)
 
     output.seek(0)
 

@@ -1,6 +1,6 @@
 from aiogram import F
 from aiogram.exceptions import TelegramBadRequest
-from aiogram.types import CallbackQuery
+from aiogram.types import CallbackQuery, FSInputFile
 
 from bot_app.data_queries import Connection
 from bot_app.data_queries.chat import get_transaction_target_chat
@@ -42,20 +42,23 @@ async def add_new_channel(
         db_connection
     )
     try:
-        await call.message.edit_text(
-            transaction_text,
+        # карточка — фото, текст живёт в подписи
+        await call.message.edit_caption(
+            caption=transaction_text,
             reply_markup=finish_transaction_processing(callback_data.transaction_uuid),
         )
     except TelegramBadRequest as e:
         if (
             "message to edit not found" in e.message
             or "message can't be edited" in e.message
+            or "there is no caption" in e.message
         ):
             tg_chat = await get_transaction_target_chat(db_connection)
 
-            message = await aiogram_bot_instance.send_message(
+            message = await aiogram_bot_instance.send_photo(
                 tg_chat.chat_tg_id,
-                text=transaction_text,
+                photo=FSInputFile("bot_app/assets/placeholder.png"),
+                caption=transaction_text,
                 reply_markup=finish_transaction_processing(
                     callback_data.transaction_uuid
                 ),

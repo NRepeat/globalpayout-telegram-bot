@@ -1,8 +1,8 @@
 import hmac
-from decimal import ROUND_DOWN, Decimal
 from typing import Annotated
 from uuid import UUID
 
+from aiogram.types import FSInputFile
 from fastapi import APIRouter, Depends, Header, HTTPException, status
 
 from bot_app.config import settings
@@ -13,11 +13,10 @@ from bot_app.data_queries.transaction import (
     get_transaction_by_uuid,
     new_transaction,
     update_posted_information,
-    update_transaction_usdt_value,
 )
 from bot_app.exchange_methods import BoxExchanger
 from bot_app.markup.base import claim_transaction_markup
-from bot_app.misc import aiogram_bot_instance, box_exchanger_client
+from bot_app.misc import aiogram_bot_instance
 from bot_app.schemas.transaction import NewTransaction, TransactionResponse
 
 
@@ -141,9 +140,13 @@ async def submit_transaction(
     )
     print(f"telegram_formatted_text chat:{telegram_formatted_text}")
     try:
-        message = await aiogram_bot_instance.send_message(
+        # Карточка — фото с плейсхолдером (как в greatbot): текст в текстовое
+        # сообщение медиа потом не вставить, а сюда при закрытии встанет
+        # квитанция через editMessageMedia.
+        message = await aiogram_bot_instance.send_photo(
             target_chat.chat_tg_id,
-            text=telegram_formatted_text,
+            photo=FSInputFile("bot_app/assets/placeholder.png"),
+            caption=telegram_formatted_text,
             reply_markup=claim_transaction_markup(str(created_transaction.uuid)),
         )
 

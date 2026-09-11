@@ -4,10 +4,8 @@ from aiogram.utils.keyboard import (
     InlineKeyboardBuilder,
     InlineKeyboardMarkup,
 )
-from typing_extensions import List
 
 from bot_app.exchange_methods import (
-    GroupResponse,
     GroupsListResponse,
     RouteId,
     RouteResponse,
@@ -50,6 +48,41 @@ class TransactionOperations(CallbackData, prefix="tx"):
 
 class CancelStateEntering(CallbackData, prefix="cancel"):
     action: str
+
+
+class CloseAccountSelection(CallbackData, prefix="close"):
+    # exchanges | back — листание экранов; partner | binance|okx|htx|bybit|mexc — выбор
+    action: str
+
+
+# Биржи, где закрываются заявки: подпись кнопки -> значение close_account
+CLOSE_EXCHANGES = {
+    "Binance": "binance",
+    "OKX": "okx",
+    "HTX": "htx",
+    "Bybit": "bybit",
+    "MEXC": "mexc",
+}
+
+
+def close_account_type_markup() -> InlineKeyboardMarkup:
+    """Первый экран «Где закрыта заявка?»: [Биржи] проваливается в список,
+    [Партнёр] спрашивает имя следующим шагом."""
+    m = InlineKeyboardBuilder()
+    m.button(text="🏦 Биржи", callback_data=CloseAccountSelection(action="exchanges"))
+    m.button(text="🤝 Партнёр", callback_data=CloseAccountSelection(action="partner"))
+    m.button(text="✖ Отменить", callback_data=CancelStateEntering(action="cancel"))
+    return m.adjust(2, 1).as_markup()
+
+
+def close_exchanges_markup() -> InlineKeyboardMarkup:
+    """Второй экран — список бирж, [◀ Назад] возвращает к типу."""
+    m = InlineKeyboardBuilder()
+    for label, value in CLOSE_EXCHANGES.items():
+        m.button(text=label, callback_data=CloseAccountSelection(action=value))
+    m.button(text="◀ Назад", callback_data=CloseAccountSelection(action="back"))
+    m.button(text="✖ Отменить", callback_data=CancelStateEntering(action="cancel"))
+    return m.adjust(3, 2, 2).as_markup()
 
 
 class ApproveOrCancelUpdatingRateDiscounts(CallbackData, prefix="discount_rate"):
@@ -217,7 +250,7 @@ def route_selection_markup(
 
 
 def group_route_selection_markup(
-    routes: List[RouteId],
+    routes: list[RouteId],
     group_external_id: str,
     user_caller_id: int,
     parsers_enabled_for_group: bool = None,
