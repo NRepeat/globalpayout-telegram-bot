@@ -1,25 +1,25 @@
 from aiogram.filters import Command
 from aiogram.types import Message
 
+from bot_app.config import settings
 from bot_app.data_queries import Connection
 from bot_app.data_queries.chat import get_transaction_target_chat, set_transaction_target
-from bot_app.data_queries.user import get_user_by_id, save_user
+from bot_app.data_queries.user import get_user_by_id
 from bot_app.misc import aiogram_router
 
 
-@aiogram_router.message(Command("set_transaction_chat"))
+# `register_main` — то же имя команды, что у greatbot и klim-bot: когда все
+# три бота сидят в одной группе, разные имена для одного действия путают.
+@aiogram_router.message(Command("set_transaction_chat", "register_main"))
 async def handle_set_transaction_chat(message: Message, db_connection: Connection):
     if message.chat.type not in ("group", "supergroup"):
         await message.answer("Команда працює тільки в групі")
         return
 
-    user = await get_user_by_id(db_connection, message.from_user.id)
-    if not user:
-        await save_user(db_connection, message.from_user)
-        await message.answer("У вас немає прав")
-        return
-    if not user.bot_admin:
-        await message.answer("У вас немає прав")
+    # Только владельцы: команда уводит весь поток новых заявок в другой чат.
+    # Ошибка чатом здесь дороже, чем отсутствие команды у админов.
+    if message.from_user.id not in settings.owner_ids:
+        await message.answer("⛔ Команда доступна лише власникам")
         return
 
     await set_transaction_target(db_connection, message.chat)

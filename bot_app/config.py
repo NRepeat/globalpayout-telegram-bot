@@ -51,6 +51,19 @@ class Settings(BaseSettings):
     # строковое: list[int] pydantic парсил бы из env как JSON и падал бы.
     BOOKKEEPER_TG_IDS: str = ""
 
+    # Владельцы: только им можно сменить группу приёма заявок. Не bot_admin —
+    # админов много, а перенос потока заявок в другой чат это не операторское
+    # действие. Формат тот же: id через запятую, пустой список = никому.
+    OWNER_TG_IDS: str = ""
+
+    @property
+    def owner_ids(self) -> frozenset[int]:
+        return frozenset(
+            int(x)
+            for x in (part.strip() for part in self.OWNER_TG_IDS.split(","))
+            if x.isdigit()
+        )
+
     @property
     def bookkeeper_ids(self) -> frozenset[int]:
         # мусор и пробелы молча пропускаем: гард должен запрещать, а не падать
