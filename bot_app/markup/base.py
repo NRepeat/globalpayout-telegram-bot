@@ -222,7 +222,15 @@ def finish_transaction_processing(transaction_uuid: str) -> InlineKeyboardMarkup
             transaction_uuid=transaction_uuid, action="failed"
         ),
     )
-    keyboard = m.adjust(2).as_markup()
+    # Відмова повертає заявку в спільний чат: оператор не зміг — хай візьме
+    # інший, а не висить за ним до кінця дня.
+    m.button(
+        text="🙅 Відмовитись",
+        callback_data=TransactionOperations(
+            transaction_uuid=transaction_uuid, action="decline"
+        ),
+    )
+    keyboard = m.adjust(2, 1).as_markup()
     return keyboard
 
 

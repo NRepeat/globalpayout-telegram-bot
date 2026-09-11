@@ -262,3 +262,48 @@ async def close_transaction(
         await cur.execute(query, (account, str(rate), str(fee), order_id, transaction_uuid))
         await conn.commit()
         return cur.rowcount > 0
+
+
+async def release_transaction(
+    conn: Connection, transaction_uuid: str, manager_id: int
+) -> bool:
+    """Відмова від заявки: знімаємо менеджера і повертаємо статус 'created',
+    щоб її міг узяти інший оператор.
+
+    Тільки з 'in_progress': вже сплачену або невдалу відмова воскрешати не
+    повинна. False — заявка не в роботі або її веде інший оператор.
+    """
+    query = """
+    UPDATE exchange_transaction SET
+        manager_id = NULL,
+        status_id = (SELECT record_id FROM data_status WHERE status_code = 'created')
+    WHERE uuid = %s
+      AND manager_id = %s
+      AND status_id = (SELECT record_id FROM data_status WHERE status_code = 'in_progress')
+    """
+    async with conn.cursor() as cur:
+        cur: Cursor
+        await cur.execute(query, (transaction_uuid, manager_id))
+        await conn.commit()
+        return cur.rowcount > 0
+
+
+async def get_posted_message(conn: Connection, transaction_uuid: str):
+    """Де лежить картка у спільному чаті: (chat_tg_id, message_id).
+
+    `posted_in_chat_id` зберігає record_id з tg_chat, а не telegram-id, тому
+    без джойна адресу не зібрати.
+    """
+    query = """
+    SELECT c.chat_tg_id AS chat_tg_id, t.posted_message_id AS message_id
+    FROM exchange_transaction t
+    JOIN tg_chat c ON c.record_id = t.posted_in_chat_id
+    WHERE t.uuid = %s
+    """
+    async with conn.cursor() as cur:
+        cur: Cursor
+        await cur.execute(query, (transaction_uuid,))
+        row = await cur.fetchone()
+    if not row or not row["message_id"]:
+        return None
+    return int(row["chat_tg_id"]), int(row["message_id"])
