@@ -416,6 +416,11 @@ async def _verify_order(
         "order_id": order_id,
         "expected_amount": str(transaction.usdt_amount),
         "expected_asset": "USDT",
+        # Основная сверка — по фиату: крипта ордера считается по курсу
+        # оператора, крипта заявки — по курсу клиента, и расходятся они всегда
+        # (это наш заработок). Совпадать обязана сумма в гривне.
+        "expected_fiat": str(transaction.amount),
+        "fiat": transaction.currency,
         # ключи берутся по закрывающему: у каждого сотрудника свой аккаунт
         "operator_id": operator_id,
     }
