@@ -58,7 +58,10 @@ def display_account(account: str) -> str:
 
 
 def ask_order(account: str) -> str:
-    return f"🧾 ID P2P-ордера {display_account(account)}"
+    return (
+        f"🧾 ID P2P-ордера {display_account(account)}\n"
+        "Закрыли частями — пришлите все ID списком, каждый с новой строки."
+    )
 
 
 def checking(account: str) -> str:
@@ -348,7 +351,8 @@ async def close_order_received(
         await _prompt(
             state,
             message.chat.id,
-            f"ID ордера — число из ордера {display_account(account)}."
+            f"ID ордера — число из ордера {display_account(account)}. "
+            "Несколько ордеров — списком, с новой строки."
             f"\n\n{ask_order(account)}",
             cancel_state_entering_markup(),
         )
@@ -383,7 +387,7 @@ async def close_order_received(
     await _prompt(state, message.chat.id, checking(account), None)
     # сверяем ключами того, кто закрывает: ордер лежит в истории его биржевого
     # аккаунта, чужим ключом он не найдётся
-    verdict = await _verify_order(transaction, value, account, message.from_user.id)
+    verdict = await _verify_order(transaction, value, account, message.from_user.id)  # value: list[str]
     if isinstance(verdict, str):  # готовый текст отказа
         await _prompt(
             state,
@@ -393,14 +397,16 @@ async def close_order_received(
         )
         return
     rate, fee = verdict
+    # несколько ордеров на заявку — храним списком в том же поле; «ордер
+    # тратится один раз» стережёт реестр exchange-check
     await _finish_close(
-        message.chat.id, db_connection, state, account, rate, fee, value
+        message.chat.id, db_connection, state, account, rate, fee, ",".join(value)
     )
 
 
 async def _verify_order(
     transaction: TransactionResponse,
-    order_id: str,
+    order_ids: list[str],
     exchange: str,
     operator_id: int,
 ) -> tuple[str, str] | str:
@@ -413,7 +419,10 @@ async def _verify_order(
         "workspace": "globalpayout",
         "request_id": str(transaction.uuid),
         "exchange": exchange,
-        "order_id": order_id,
+        # order_id — старый контракт сервиса; order_ids сверяется суммой
+        # по всем ордерам с допуском 5% (закрытие частями)
+        "order_id": order_ids[0] if order_ids else "",
+        "order_ids": order_ids,
         "expected_amount": str(transaction.usdt_amount),
         "expected_asset": "USDT",
         # Основная сверка — по фиату: крипта ордера считается по курсу

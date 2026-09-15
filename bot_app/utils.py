@@ -1,4 +1,5 @@
 import datetime
+import re
 from decimal import Decimal, InvalidOperation
 
 
@@ -25,18 +26,44 @@ def parse_close_rate(text: str) -> Decimal | None:
     return value
 
 
-def parse_close_order_input(text: str) -> tuple[str, str | Decimal] | None:
-    """Ввод на шаге ID ордера Binance: ("order", "<цифры>") — сверить через
-    сервис; ("rate", Decimal) — ручной курс; None — мусор.
+# Оформление списка: маркер или нумерация — не номер ордера
+_LIST_NOISE = re.compile(r"^(?:[-–—*•·]|\d{1,3}[.)])$")
+
+
+def parse_order_ids(text: str) -> list[str] | None:
+    """ID ордеров из одного сообщения: закрытие частями — оператор шлёт их
+    списком (с новой строки, через пробел или запятую), часто с маркерами или
+    нумерацией, копипастой из своих заметок. Номера достаём, оформление
+    выбрасываем. Дубли схлопываем: повторённый номер удвоил бы сумму и
+    «сошёлся» там, где недоплата.
+    None — среди слов есть что-то кроме номера и оформления: это курс или
+    мусор, в сверку такой текст пускать нельзя."""
+    ids: list[str] = []
+    for part in text.replace(",", " ").replace(";", " ").split():
+        if _LIST_NOISE.match(part):
+            continue
+        order_id = part.lstrip("#№")
+        # только ASCII-цифры: isdigit() пропускает юникод-цифры («١٢٣»)
+        if len(order_id) < 5 or not (order_id.isascii() and order_id.isdigit()):
+            return None
+        if order_id not in ids:
+            ids.append(order_id)
+    return ids or None
+
+
+def parse_close_order_input(text: str) -> tuple[str, list[str] | Decimal] | None:
+    """Ввод на шаге ID ордера Binance: ("order", ["<цифры>", ...]) — сверить
+    через сервис (несколько ID = закрытие частями); ("rate", Decimal) — ручной
+    курс; None — мусор.
     Ручной курс принимаем и голым числом («44.12»), не только «курс 44.12»:
     ID от курса отличается сам — длинное целое из цифр против короткого числа."""
     s = text.strip()
     if s.lower().startswith("курс"):
         rate = parse_close_rate(s[4:])
         return ("rate", rate) if rate is not None else None
-    # ID P2P-ордера — только ASCII-цифры (isdigit() пропускает юникод-цифры)
-    if len(s) >= 5 and s.isascii() and s.isdigit():
-        return ("order", s)
+    ids = parse_order_ids(s)
+    if ids is not None:
+        return ("order", ids)
     # только ASCII: Decimal молча глотает юникод-цифры («١٢٣»), а это мусор
     if s.isascii():
         rate = parse_close_rate(s)

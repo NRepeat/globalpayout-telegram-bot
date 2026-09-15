@@ -26,8 +26,8 @@ def test_parse_close_rate():
 
 
 def test_parse_close_order_input():
-    # ID ордера — только ASCII-цифры, длина от 5
-    assert utils.parse_close_order_input(" 20250910123 ") == ("order", "20250910123")
+    # ID ордера — только ASCII-цифры, длина от 5; наружу всегда список
+    assert utils.parse_close_order_input(" 20250910123 ") == ("order", ["20250910123"])
     # короткое число — ручной курс голым числом (гард бухгалтера — в хендлере)
     assert utils.parse_close_order_input("1234") == ("rate", Decimal("1234"))
     assert utils.parse_close_order_input("44,12") == ("rate", Decimal("44.12"))
@@ -38,6 +38,29 @@ def test_parse_close_order_input():
     assert utils.parse_close_order_input("Курс 41.25") == ("rate", Decimal("41.25"))
     assert utils.parse_close_order_input("курс ноль") is None
     assert utils.parse_close_order_input("курс 0") is None
+
+
+def test_parse_order_ids_multi():
+    """Закрытие частями: несколько ID в одном сообщении. Сумму сверяет
+    exchange-check (допуск 5%), бот отвечает за разбор ввода."""
+    assert utils.parse_order_ids("12345678") == ["12345678"]
+    assert utils.parse_order_ids(" 12345678  87654321 ") == ["12345678", "87654321"]
+    assert utils.parse_order_ids("12345678,87654321") == ["12345678", "87654321"]
+    assert utils.parse_order_ids("12345678\n87654321") == ["12345678", "87654321"]
+    # повтор не должен удваивать сумму
+    assert utils.parse_order_ids("12345678 12345678") == ["12345678"]
+    # список из заметок: нумерация и маркеры — оформление, не номера
+    assert utils.parse_order_ids("1. 12345678\n2. 87654321") == ["12345678", "87654321"]
+    assert utils.parse_order_ids("- 12345678\n- 87654321") == ["12345678", "87654321"]
+    assert utils.parse_order_ids("№12345678 #87654321") == ["12345678", "87654321"]
+    assert utils.parse_order_ids("44.12") is None
+    assert utils.parse_order_ids("12345678 44.12") is None
+    assert utils.parse_order_ids("") is None
+    # пачка доезжает через общий разбор шага
+    assert utils.parse_close_order_input("12345678 87654321") == (
+        "order",
+        ["12345678", "87654321"],
+    )
 
 
 # config.py тоже грузим файлом: пакет bot_app тянет aiogram и живой токен
