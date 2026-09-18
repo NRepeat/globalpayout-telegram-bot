@@ -34,10 +34,14 @@ from bot_app.markup.base import (
     close_account_type_markup,
     close_exchanges_markup,
 )
-from bot_app.misc import aiogram_bot_instance, aiogram_router
+from bot_app.misc import aiogram_bot_instance, aiogram_router, storage
 from bot_app.schemas.transaction import TransactionResponse
 from bot_app.states import CloseTransaction
-from bot_app.utils import parse_close_order_input, parse_close_rate
+from bot_app.utils import (
+    parse_close_order_input,
+    parse_close_rate,
+    pick_foreign_close,
+)
 
 log = logging.getLogger(__name__)
 
@@ -548,3 +552,59 @@ async def _finish_close(
         db_connection, data["card_chat_id"], data["card_message_id"], transaction, extra
     )
     await _refresh_common_card(db_connection, data["card_chat_id"], transaction)
+
+
+# Текстовые шаги закрытия, куда бухгалтер может вписать курс.
+_CLOSE_INPUT_STATES = (CloseTransaction.rate.state, CloseTransaction.order_id.state)
+
+
+async def _foreign_close_rate(message: Message) -> dict | bool:
+    """Курс бухгалтера уходит в чужой визард: он пишет его в чат оператора, а
+    FSM-ключ у бухгалтера свой, и шаг оператора сообщение не видит.
+
+    Фильтром, а не проверкой внутри хендлера: не подошло — сообщение идёт
+    дальше по цепочке. Молчим и когда закрывать нечего: числа в рабочих
+    группах пишут и просто так, отвечать на каждое — спам.
+    """
+    if not message.text or message.from_user is None:
+        return False
+    if message.from_user.id not in settings.bookkeeper_ids:
+        return False
+    found = pick_foreign_close(
+        ((key, record.state) for key, record in storage.storage.items()),
+        message.bot.id,
+        message.chat.id,
+        message.from_user.id,
+        _CLOSE_INPUT_STATES,
+    )
+    if found is None:
+        return False
+    key, state = found
+    if state == CloseTransaction.order_id.state:
+        # на шаге ордера длинное число — ID ордера, а не курс; сверяется он
+        # ключами оператора, не бухгалтера, поэтому берём только ручной курс
+        parsed = parse_close_order_input(message.text)
+        rate = parsed[1] if parsed is not None and parsed[0] == "rate" else None
+    else:
+        rate = parse_close_rate(message.text)
+    if rate is None:
+        return False
+    return {"foreign": FSMContext(storage=storage, key=key), "foreign_rate": rate}
+
+
+@aiogram_router.message(F.text, _foreign_close_rate)
+async def bookkeeper_foreign_rate(
+    message: Message,
+    db_connection: Connection,
+    foreign: FSMContext,
+    foreign_rate,
+):
+    """Закрыть чужую заявку курсом бухгалтера — тот же финал, что и у своего
+    шага курса, только состояние берём найденное."""
+    await _trash(foreign, message.message_id)
+    data = await foreign.get_data()
+    account = data.get("close_account", "binance")
+    fee = await get_close_fee(db_connection, account)
+    await _finish_close(
+        message.chat.id, db_connection, foreign, account, foreign_rate, fee, None
+    )

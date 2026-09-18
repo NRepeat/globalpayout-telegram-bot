@@ -2,6 +2,7 @@
 сети и БД. Импорт bot_app целиком тянет aiogram и живой токен, поэтому
 utils.py грузим напрямую файлом. Запуск: pytest test_close_input.py"""
 
+import collections
 import importlib.util
 import pathlib
 from decimal import Decimal
@@ -23,6 +24,26 @@ def test_parse_close_rate():
     assert utils.parse_close_rate("сорок") is None
     assert utils.parse_close_rate("inf") is None
     assert utils.parse_close_rate("nan") is None
+    # бухгалтер диктует курс словом — префикс не должен ронять разбор
+    assert utils.parse_close_rate("курс 45,8") == Decimal("45.8")
+    assert utils.parse_close_rate("Курс 45.8") == Decimal("45.8")
+    assert utils.parse_close_rate("курсы") is None
+
+
+def test_pick_foreign_close():
+    """Курс бухгалтера уходит в чужой открытый шаг закрытия этого чата."""
+    key = collections.namedtuple("key", "bot_id chat_id user_id")
+    states = ("CloseTransaction:rate", "CloseTransaction:order_id")
+    operator = (key(1, -1, 555), "CloseTransaction:rate")
+    pick = utils.pick_foreign_close
+
+    assert pick([operator], 1, -1, 777, states)[0].user_id == 555
+    # другой бот / другой чат / не шаг закрытия — не наше
+    assert pick([operator], 2, -1, 777, states) is None
+    assert pick([(key(1, -2, 555), "CloseTransaction:rate")], 1, -1, 777, states) is None
+    assert pick([(key(1, -1, 555), "CloseTransaction:receipt")], 1, -1, 777, states) is None
+    # свой визард на руках — чужую заявку не трогаем
+    assert pick([operator, (key(1, -1, 777), "NewManualRate:value")], 1, -1, 777, states) is None
 
 
 def test_parse_close_order_input():

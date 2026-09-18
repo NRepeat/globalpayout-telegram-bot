@@ -15,8 +15,13 @@ def format_unix_timestamp(unix_ms: int) -> str:
 
 def parse_close_rate(text: str) -> Decimal | None:
     """Курс закрытия из ввода оператора: запятая — тоже точка, ноль и мусор —
-    отказ (курс нулевым не бывает, ноль здесь всегда опечатка)."""
-    s = text.strip().replace(",", ".")
+    отказ (курс нулевым не бывает, ноль здесь всегда опечатка).
+    «курс 45,8» — так курс диктует бухгалтер; префикс раньше ронял разбор на
+    шаге курса, и ввод уходил обратно в «📊 Курс закрытия»."""
+    s = text.strip()
+    if s.lower().startswith("курс"):
+        s = s[4:].strip()
+    s = s.replace(",", ".")
     try:
         value = Decimal(s)
     except InvalidOperation:
@@ -70,3 +75,24 @@ def parse_close_order_input(text: str) -> tuple[str, list[str] | Decimal] | None
         if rate is not None:
             return ("rate", rate)
     return None
+
+
+def pick_foreign_close(rows, bot_id: int, chat_id: int, from_id: int, close_states):
+    """Чужой открытый шаг закрытия в этом чате — тот, в который бухгалтер
+    вписывает курс. FSM-ключ aiogram это (бот, чат, юзер), поэтому сообщение
+    бухгалтера до шага оператора само не доходит: ищем шаг в сторе.
+
+    `rows` — пары (ключ, имя состояния) из хранилища. None, если закрывать
+    нечего или свой визард на руках: его ведут обычные хендлеры, чужую заявку
+    закрываем только со свободными руками.
+    """
+    foreign = None
+    for key, state in rows:
+        if key.bot_id != bot_id or key.chat_id != chat_id:
+            continue
+        if key.user_id == from_id:
+            if state is not None:
+                return None
+        elif state in close_states and foreign is None:
+            foreign = (key, state)
+    return foreign
