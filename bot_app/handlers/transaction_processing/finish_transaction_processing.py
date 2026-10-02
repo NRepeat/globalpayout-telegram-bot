@@ -79,6 +79,16 @@ NOT_BOOKKEEPER = (
 )
 
 
+def _manual_rate_denied(message: Message) -> bool:
+    """Гард бухгалтера на ручной курс.
+
+    ВРЕМЕННО ОТКЛЮЧЁН: курс руками вводит любой оператор. Вернуть гард —
+    убрать `return False` и раскомментировать строку ниже.
+    """
+    return False
+    # return message.from_user.id not in settings.bookkeeper_ids
+
+
 async def _refresh_card(
     db_connection: Connection,
     chat_id: int,
@@ -324,7 +334,7 @@ async def close_rate_received(
     await _trash(state, message.message_id)
     # Гард бухгалтера: единственная точка, куда сходятся все ручные курсы
     # (OKX/HTX/Bybit/MEXC и партнёры). Состояние не трогаем — шаг тот же.
-    if message.from_user.id not in settings.bookkeeper_ids:
+    if _manual_rate_denied(message):
         await _prompt(
             state,
             message.chat.id,
@@ -366,7 +376,7 @@ async def close_order_received(
     if kind == "rate":
         # обход «курс N» — тот же ручной курс, гард бухгалтера и здесь;
         # сверка по ID ордера ниже остаётся доступной всем
-        if message.from_user.id not in settings.bookkeeper_ids:
+        if _manual_rate_denied(message):
             await _prompt(
                 state,
                 message.chat.id,
