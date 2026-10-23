@@ -348,7 +348,7 @@ class TransactionResponse(BaseModel):
         if self.usdt_amount is not None:
             text += f"💰 <b>Внесена сума:</b> <code>{self.usdt_amount} USDT</code>\n"
         if self.rates is not None:
-            text += f"📊 <b>Курс:</b> <code>{self.rates:.2f}</code>\n"
+            text += f"📊 <b>Курс:</b> <code>{self.rates:.4f}</code>\n"
         text += (
             f"💱 <b>Сервіс:</b> <code>{self.service_name or 'N/A'}</code>\n"
             f"🔔 <b>Статус:</b> {self.status_codes_to_emoji(self.status_code)} {self.status_code}\n"
